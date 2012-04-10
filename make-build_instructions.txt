@@ -1,0 +1,75 @@
+
+APRIL 2012: Makefiles have been added to alljoyn_js.
+----------
+
+This basic Make build works on Ubuntu x86 only. SCons is not used.
+
+OS=linux, CPU=x86 or CPU=x86-64 are the only configurations supported by this
+Make build.  No attempt is made to support other platforms, as the SCons build
+does.
+
+
+Setup for Make build:
+--------------------
+You do not need Python, SCons, Doxygen, Uncrustify, etc to use this Make build.
+
+Complete a Make build of the AllJoyn "core", which will build the AllJoyn
+daemon executable and native-code client libraries for the target platform.
+Note the "OS" and "CPU" settings used in the Make command.
+
+* For more information, see "alljoyn_core/make-build_instructions.top" and
+* "alljoyn_core/Makefile.top".  When the AllJoyn core build workspace is
+* set up, these files appear as "make-build_instructions.txt" and "Makefile",
+* in the folder ABOVE alljoyn_core.
+
+Install the xulrunner SDK (or equivalent).  Note the full path to the "include"
+folder.
+
+
+How to run Make build:
+---------------------
+
+Once the AllJoyn "core" Make build has been completed, for both VARIANT=debug
+and VARIANT=release, expand alljoyn_js (this source tree) into the same build
+workspace- right alongside the alljoyn_core and common source trees.
+
+The top-level folder of the AllJoyn core build workspace should contain:
+  alljoyn_core/
+  alljoyn_js/
+  common/
+  make-build_instructions.txt
+  Makefile
+  ... etc
+
+Where alljoyn_js is this source subtree, containing:
+  docs/
+  jni/
+  res/
+  samples/
+  src/
+  test/
+  .classpath
+  .project
+  AndroidManifest.xml
+  ...
+  make-build_instructions.txt
+  make-example-setenv.sh
+  Makefile
+  ... etc
+
+
+cd alljoyn_js                   # this source tree
+
+cp make-example-setenv.sh setenv.sh  # create a local copy
+
+vi setenv.sh                    # edit local copy as follows:
+  # Set GECKO_BASE = the full path to the xulrunner SDK's "include" folder.
+  # Set OS and CPU to the same settings used for the AllJoyn "core" Make build.
+  # Set VARIANT=release for "production" binaries
+
+source setenv.sh                # set the env variables (make Macros)
+
+make                            # builds the VARIANT defined in setenv.sh
+
+make VARIANT=debug              # optional, for "debug" binaries
+
