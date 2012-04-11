@@ -271,6 +271,7 @@ class SessionPortListener : public ajn::SessionPortListener, public ajn::Session
     };
     typedef qcc::ManagedObj<_Env> Env;
     Env env;
+    qcc::Event cancelEvent;
     SessionPortListener(Plugin& plugin, BusAttachment& busAttachment, AcceptSessionJoinerListenerNative* acceptSessionListenerNative, SessionJoinedListenerNative* sessionJoinedListenerNative, SessionLostListenerNative* sessionLostListenerNative, SessionMemberAddedListenerNative* sessionMemberAddedListenerNative, SessionMemberRemovedListenerNative* sessionMemberRemovedListenerNative)
         : env(plugin, busAttachment, acceptSessionListenerNative, sessionJoinedListenerNative, sessionLostListenerNative, sessionMemberAddedListenerNative, sessionMemberRemovedListenerNative) { }
     virtual ~SessionPortListener() { }
@@ -291,7 +292,33 @@ class SessionPortListener : public ajn::SessionPortListener, public ajn::Session
     virtual bool AcceptSessionJoiner(ajn::SessionPort sessionPort, const char* joiner, const ajn::SessionOpts& opts) {
         AcceptSessionJoinerContext context(env, sessionPort, joiner, opts);
         PluginData::DispatchCallback(env->plugin, _AcceptSessionJoiner, &context);
-        qcc::Event::Wait(context.event);
+        /*
+         * Complex processing here to prevent UI thread from deadlocking if it ends up calling
+         * unbindSessionPort.
+         *
+         * UnbindSessionPort() will block until all AcceptSessionJoiner callbacks have returned.
+         * Setting the cancelEvent will unblock any synchronous callback.  Then a little extra
+         * coordination is needed to remove the dispatch context so that when the dispatched callback
+         * is run it does nothing.
+         */
+        std::vector<qcc::Event*> check;
+        check.push_back(&context.event);
+        check.push_back(&cancelEvent);
+        std::vector<qcc::Event*> signaled;
+        signaled.clear();
+        QStatus status = qcc::Event::Wait(check, signaled);
+        assert(ER_OK == status);
+        if (ER_OK != status) {
+            QCC_LogError(status, ("Wait failed"));
+        }
+        for (std::vector<qcc::Event*>::iterator i = signaled.begin(); i != signaled.end(); ++i) {
+            if (*i == &cancelEvent) {
+                PluginData::CancelCallback(env->plugin, _AcceptSessionJoiner, &context);
+                qcc::Event::Wait(context.event);
+                context.status = ER_ALERTED_THREAD;
+                break;
+            }
+        }
         return (ER_OK == context.status);
     }
     static void _AcceptSessionJoiner(PluginData::CallbackContext* ctx) {
@@ -1048,6 +1075,11 @@ _BusAttachmentHost::~_BusAttachmentHost()
     }
     for (std::map<ajn::SessionPort, SessionPortListener*>::iterator it = sessionPortListeners.begin(); it != sessionPortListeners.end(); ++it) {
         SessionPortListener* sessionPortListener = it->second;
+        QStatus status = sessionPortListener->cancelEvent.SetEvent();
+        assert(ER_OK == status);
+        if (ER_OK != status) {
+            QCC_LogError(status, ("SetEvent failed")); /* Small chance of deadlock if this occurs. */
+        }
         busAttachment->UnbindSessionPort(it->first);
         delete sessionPortListener;
     }
