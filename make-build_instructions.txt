@@ -22,8 +22,15 @@ Note the "OS" and "CPU" settings used in the Make command.
 * set up, these files appear as "make-build_instructions.txt" and "Makefile",
 * in the folder ABOVE alljoyn_core.
 
-Install the xulrunner SDK (or equivalent).  Note the full path to the "include"
-folder.
+Install Xulrunner SDK.  The alljoyn_js build needs header files from the
+Xulrunner SDK.  No xulrunner binaries are used, only a few of the header files.
+We recommend the same version of xulrunner-sdk for both 32 and 64 bit Ubuntu:
+  http://ftp.mozilla.org/pub/mozilla.org/xulrunner/releases/3.6.27/sdk/xulrunner-3.6.27.en-US.linux-i686.sdk.tar.bz2.
+Download and install the recommended version, and note the full path to the
+"include" folder.
+
+Install dependencies: packages libgtk2.0-dev, libssl-dev, and xsltproc
+(on Ubuntu).
 
 
 How to run Make build:
@@ -63,7 +70,7 @@ cd alljoyn_js                   # this source tree
 cp make-example-setenv.sh setenv.sh  # create a local copy
 
 vi setenv.sh                    # edit local copy as follows:
-  # Set GECKO_BASE = the full path to the xulrunner SDK's "include" folder.
+  # Set GECKO_BASE = full path to xulrunner SDK, just above the "include" folder.
   # Set OS and CPU to the same settings used for the AllJoyn "core" Make build.
   # Set VARIANT=release for "production" binaries
 
@@ -73,3 +80,18 @@ make                            # builds the VARIANT defined in setenv.sh
 
 make VARIANT=debug              # optional, for "debug" binaries
 
+
+Browser Plugin file:
+-------------------
+A successful build will produce a browser plug-in file named libnpalljoyn.so.
+This file needs to be copied into ~/.mozilla/plugins before starting the browser.
+
+The libnpalljoyn.so plugin file may contain a run-time reference to liballjoyn.so,
+the AllJoyn shared library produced by the AllJoyn "core" build.
+You can find out if it does by running
+  ldd libnpalljoyn.so
+and looking for any reference to liballjoyn.so.
+If a reference to liballjoyn.so exists, then you will need to copy liballjoyn.so
+into ~/.mozilla/plugins, alongside libnpalljoyn.so.
+If no reference to liballjoyn.so was found, you do not need to install liballjoyn.so
+with the plugin.
