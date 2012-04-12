@@ -99,10 +99,10 @@ class BusListener : public ajn::BusListener {
     class _Env {
       public:
         Plugin plugin;
-        _BusAttachmentHost* busAttachmentHost;
+        BusAttachmentHost busAttachmentHost;
         BusAttachment busAttachment;
         BusListenerNative* busListenerNative;
-        _Env(Plugin& plugin, _BusAttachmentHost* busAttachmentHost, BusAttachment& busAttachment, BusListenerNative* busListenerNative)
+        _Env(Plugin& plugin, BusAttachmentHost& busAttachmentHost, BusAttachment& busAttachment, BusListenerNative* busListenerNative)
             : plugin(plugin)
             , busAttachmentHost(busAttachmentHost)
             , busAttachment(busAttachment)
@@ -113,7 +113,7 @@ class BusListener : public ajn::BusListener {
     };
     typedef qcc::ManagedObj<_Env> Env;
     Env env;
-    BusListener(Plugin& plugin, _BusAttachmentHost* busAttachmentHost, BusAttachment& busAttachment, BusListenerNative* busListenerNative)
+    BusListener(Plugin& plugin, BusAttachmentHost& busAttachmentHost, BusAttachment& busAttachment, BusListenerNative* busListenerNative)
         : env(plugin, busAttachmentHost, busAttachment, busListenerNative) { }
     virtual ~BusListener() { }
 
@@ -129,8 +129,7 @@ class BusListener : public ajn::BusListener {
     }
     static void _ListenerRegistered(PluginData::CallbackContext* ctx) {
         ListenerRegisteredContext* context = static_cast<ListenerRegisteredContext*>(ctx);
-        BusAttachmentHost busAttachmentHost(context->env->busAttachmentHost);
-        context->env->busListenerNative->onRegistered(busAttachmentHost);
+        context->env->busListenerNative->onRegistered(context->env->busAttachmentHost);
     }
 
     class ListenerUnregisteredContext : public PluginData::AsyncCallbackContext {
@@ -521,12 +520,12 @@ class JoinSessionAsyncCB : public ajn::BusAttachment::JoinSessionAsyncCB {
     class _Env {
       public:
         Plugin plugin;
-        _BusAttachmentHost* busAttachmentHost;
+        BusAttachmentHost busAttachmentHost;
         BusAttachment busAttachment;
         JoinSessionSuccessListenerNative* successListenerNative;
         ErrorListenerNative* errorListenerNative;
         SessionListener* sessionListener;
-        _Env(Plugin& plugin, _BusAttachmentHost* busAttachmentHost, BusAttachment& busAttachment, JoinSessionSuccessListenerNative* successListenerNative, ErrorListenerNative* errorListenerNative, SessionListener* sessionListener)
+        _Env(Plugin& plugin, BusAttachmentHost& busAttachmentHost, BusAttachment& busAttachment, JoinSessionSuccessListenerNative* successListenerNative, ErrorListenerNative* errorListenerNative, SessionListener* sessionListener)
             : plugin(plugin)
             , busAttachmentHost(busAttachmentHost)
             , busAttachment(busAttachment)
@@ -541,7 +540,7 @@ class JoinSessionAsyncCB : public ajn::BusAttachment::JoinSessionAsyncCB {
     };
     typedef qcc::ManagedObj<_Env> Env;
     Env env;
-    JoinSessionAsyncCB(Plugin& plugin, _BusAttachmentHost* busAttachmentHost, BusAttachment& busAttachment, JoinSessionSuccessListenerNative* successListenerNative, ErrorListenerNative* errorListenerNative, SessionListener* sessionListener)
+    JoinSessionAsyncCB(Plugin& plugin, BusAttachmentHost& busAttachmentHost, BusAttachment& busAttachment, JoinSessionSuccessListenerNative* successListenerNative, ErrorListenerNative* errorListenerNative, SessionListener* sessionListener)
         : env(plugin, busAttachmentHost, busAttachment, successListenerNative, errorListenerNative, sessionListener) { }
     virtual ~JoinSessionAsyncCB() { }
 
@@ -1445,6 +1444,7 @@ bool _BusAttachmentHost::registerBusListener(const NPVariant* args, uint32_t arg
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
 
+    BusAttachmentHost busAttachmentHost(this);
     BusListenerNative* busListenerNative = 0;
     BusListener* busListener = 0;
     std::list<BusListener*>::iterator it;
@@ -1469,7 +1469,7 @@ bool _BusAttachmentHost::registerBusListener(const NPVariant* args, uint32_t arg
         }
     }
 
-    busListener = new BusListener(plugin, this, busAttachment, busListenerNative);
+    busListener = new BusListener(plugin, busAttachmentHost, busAttachment, busListenerNative);
     busListenerNative = 0; /* busListener now owns busListenerNative */
     busAttachment->RegisterBusListener(*busListener);
     busListeners.push_back(busListener);
@@ -2059,6 +2059,7 @@ bool _BusAttachmentHost::joinSession(const NPVariant* args, uint32_t argCount, N
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
 
+    BusAttachmentHost busAttachmentHost(this);
     JoinSessionSuccessListenerNative* successListenerNative = 0;
     ErrorListenerNative* errorListenerNative = 0;
     qcc::String sessionHost;
@@ -2204,7 +2205,7 @@ bool _BusAttachmentHost::joinSession(const NPVariant* args, uint32_t argCount, N
     sessionMemberAddedListenerNative = 0;
     sessionMemberRemovedListenerNative = 0;
 
-    callback = new JoinSessionAsyncCB(plugin, this, busAttachment, successListenerNative, errorListenerNative, sessionListener);
+    callback = new JoinSessionAsyncCB(plugin, busAttachmentHost, busAttachment, successListenerNative, errorListenerNative, sessionListener);
     successListenerNative = 0; /* callback now owns successListenerNative */
     errorListenerNative = 0; /* callback now owns errorListenerNative */
     sessionListener = 0; /* callback now owns sessionListener */
