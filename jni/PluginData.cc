@@ -90,9 +90,7 @@ void PluginData::DispatchCallback(Plugin& plugin, PluginData::Callback callback,
 void PluginData::CancelCallback(Plugin& plugin, PluginData::Callback callback, CallbackContext* context)
 {
     PendingCallback pendingCallback;
-    NPP npp = 0;
     lock.Lock();
-    npp = plugin->npp;
     if (plugin->npp) {
         for (std::list<PendingCallback>::iterator it = pendingCallbacks.begin(); it != pendingCallbacks.end(); ++it) {
             if ((it->npp == plugin->npp) && (it->callback == callback) && (it->context == context)) {
