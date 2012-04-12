@@ -99,10 +99,15 @@ class BusListener : public ajn::BusListener {
     class _Env {
       public:
         Plugin plugin;
-        BusAttachmentHost busAttachmentHost;
+        /*
+         * Use a naked pointer here instead of a ManagedObj since the lifetime of BusListener is tied
+         * to the lifetime of the BusAttachmentHost.  If we use a ManagedObj, then there is a circular
+         * reference and the BusAttachmentHost may never be deleted.
+         */
+        _BusAttachmentHost* busAttachmentHost;
         BusAttachment busAttachment;
         BusListenerNative* busListenerNative;
-        _Env(Plugin& plugin, BusAttachmentHost& busAttachmentHost, BusAttachment& busAttachment, BusListenerNative* busListenerNative)
+        _Env(Plugin& plugin, _BusAttachmentHost* busAttachmentHost, BusAttachment& busAttachment, BusListenerNative* busListenerNative)
             : plugin(plugin)
             , busAttachmentHost(busAttachmentHost)
             , busAttachment(busAttachment)
@@ -113,23 +118,31 @@ class BusListener : public ajn::BusListener {
     };
     typedef qcc::ManagedObj<_Env> Env;
     Env env;
-    BusListener(Plugin& plugin, BusAttachmentHost& busAttachmentHost, BusAttachment& busAttachment, BusListenerNative* busListenerNative)
+    BusListener(Plugin& plugin, _BusAttachmentHost* busAttachmentHost, BusAttachment& busAttachment, BusListenerNative* busListenerNative)
         : env(plugin, busAttachmentHost, busAttachment, busListenerNative) { }
     virtual ~BusListener() { }
 
     class ListenerRegisteredContext : public PluginData::AsyncCallbackContext {
       public:
         Env env;
-        ListenerRegisteredContext(Env& env)
+        BusAttachmentHost busAttachmentHost;
+        ListenerRegisteredContext(Env& env, BusAttachmentHost& busAttachmentHost)
             : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env) { }
+            , env(env)
+            , busAttachmentHost(busAttachmentHost) { }
     };
     virtual void ListenerRegistered(ajn::BusAttachment* bus) {
-        PluginData::DispatchCallback(env->plugin, _ListenerRegistered, new ListenerRegisteredContext(env));
+        /*
+         * Capture the naked pointer into a ManagedObj.  This is safe to do here (and is necessary) since
+         * this call will not occur without a valid BusAttachmentHost.  The same cannot be said of the
+         * dispatched callback below (_ListenerRegistered).
+         */
+        BusAttachmentHost busAttachmentHost(env->busAttachmentHost);
+        PluginData::DispatchCallback(env->plugin, _ListenerRegistered, new ListenerRegisteredContext(env, busAttachmentHost));
     }
     static void _ListenerRegistered(PluginData::CallbackContext* ctx) {
         ListenerRegisteredContext* context = static_cast<ListenerRegisteredContext*>(ctx);
-        context->env->busListenerNative->onRegistered(context->env->busAttachmentHost);
+        context->env->busListenerNative->onRegistered(context->busAttachmentHost);
     }
 
     class ListenerUnregisteredContext : public PluginData::AsyncCallbackContext {
@@ -1444,7 +1457,6 @@ bool _BusAttachmentHost::registerBusListener(const NPVariant* args, uint32_t arg
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
 
-    BusAttachmentHost busAttachmentHost(this);
     BusListenerNative* busListenerNative = 0;
     BusListener* busListener = 0;
     std::list<BusListener*>::iterator it;
@@ -1469,7 +1481,7 @@ bool _BusAttachmentHost::registerBusListener(const NPVariant* args, uint32_t arg
         }
     }
 
-    busListener = new BusListener(plugin, busAttachmentHost, busAttachment, busListenerNative);
+    busListener = new BusListener(plugin, this, busAttachment, busListenerNative);
     busListenerNative = 0; /* busListener now owns busListenerNative */
     busAttachment->RegisterBusListener(*busListener);
     busListeners.push_back(busListener);
