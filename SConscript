@@ -100,6 +100,7 @@ if 'WIDLPROC' in env:
             ' --stringparam date "' + time.strftime('%d %B %Y') + '"' +
             ' --stringparam logo "<img src=\\"icon.png\\" alt=\\"AllJoyn logo\\"/>"' +
             ' --stringparam footer ' + footer +
+            ' --path ' + os.path.dirname(env['WIDLPROC']) +
             ' -o ' + File('docs/html/index.html').path +
             ' ' + File(os.path.dirname(env['WIDLPROC']) + '/../src/widlprocxmltohtml.xsl').path +
             ' ' + File('docs/alljoyn.wxml').path
