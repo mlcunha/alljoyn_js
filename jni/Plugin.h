@@ -130,6 +130,7 @@ class _Plugin {
     void CheckError(NPObject* npobj);
 
     _Plugin(NPP npp);
+    _Plugin();
     ~_Plugin();
 
   private:

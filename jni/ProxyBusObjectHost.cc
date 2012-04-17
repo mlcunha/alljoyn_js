@@ -50,20 +50,19 @@ class IntrospectRemoteObjectAsyncCB : public ajn::ProxyBusObject::Listener {
         : env(plugin, busAttachment, proxyBusObject, successListenerNative, errorListenerNative) { }
     virtual ~IntrospectRemoteObjectAsyncCB() { }
 
-    class IntrospectCBContext : public PluginData::AsyncCallbackContext {
+    class IntrospectCBContext : public PluginData::CallbackContext {
       public:
         Env env;
         QStatus status;
         IntrospectCBContext(Env& env, QStatus status)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , status(status) { }
     };
     virtual void IntrospectCB(QStatus status, ajn::ProxyBusObject*, void*) {
-        Plugin plugin = env->plugin;
-        IntrospectCBContext* context = new IntrospectCBContext(env, status);
+        PluginData::Callback callback(env->plugin, _IntrospectCB);
+        callback->context = new IntrospectCBContext(env, status);
         delete this;
-        PluginData::DispatchCallback(plugin, _IntrospectCB, context);
+        PluginData::DispatchCallback(callback);
     }
     static void _IntrospectCB(PluginData::CallbackContext* ctx) {
         IntrospectCBContext* context = static_cast<IntrospectCBContext*>(ctx);

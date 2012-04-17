@@ -23,31 +23,37 @@
 
 #define QCC_MODULE "ALLJOYN_JS"
 
-class DestroyOnMainThread : public PluginData::AsyncCallbackContext {
-  public:
-    CallbackContext* context;
-    DestroyOnMainThread(CallbackContext* context)
-        : PluginData::AsyncCallbackContext(context->plugin)
-        , context(context) { }
-    static void _Destroy(PluginData::CallbackContext* ctx) {
-        DestroyOnMainThread* context = static_cast<DestroyOnMainThread*>(ctx);
-        delete context;
-    }
-};
+static void _DestroyOnMainThread(PluginData::CallbackContext*) {
+}
 
-void PluginData::AsyncCallbackContext::Destroy()
+PluginData::_Callback::_Callback(Plugin& plugin, void(*callback)(CallbackContext*))
+    : callback(callback)
+    , context(0)
+    , plugin(plugin)
+    , key(0)
+{
+}
+
+PluginData::_Callback::_Callback()
+    : callback(0)
+    , context(0)
+    , key(0)
+{
+}
+
+PluginData::_Callback::~_Callback()
 {
     if (gPluginThread == qcc::Thread::GetThread()) {
-        delete this;
+        delete context;
     } else {
-        PluginData::DispatchCallback(plugin, DestroyOnMainThread::_Destroy, new DestroyOnMainThread(this));
+        PluginData::DestroyOnMainThread(plugin, context);
     }
 }
 
-void PluginData::SyncCallbackContext::Destroy()
+void PluginData::_Callback::SetEvent()
 {
-    if (!event.IsSet()) {
-        QStatus setStatus = event.SetEvent();
+    if (!context->event.IsSet()) {
+        QStatus setStatus = context->event.SetEvent();
         setStatus = setStatus; /* Fix compiler warning in release builds. */
         assert(ER_OK == setStatus);
         if (ER_OK != setStatus) {
@@ -56,73 +62,76 @@ void PluginData::SyncCallbackContext::Destroy()
     }
 }
 
-std::list<PluginData::PendingCallback> PluginData::pendingCallbacks;
+std::list<PluginData::Callback> PluginData::pendingCallbacks;
 uintptr_t PluginData::nextPendingCallbackKey = 1;
 qcc::Mutex PluginData::lock;
 
-void PluginData::DispatchCallback(Plugin& plugin, PluginData::Callback callback, CallbackContext* context)
+void PluginData::DispatchCallback(PluginData::Callback& callback)
 {
-    NPP npp = 0;
-    lock.Lock();
-    npp = plugin->npp;
-    if (plugin->npp) {
-        NPN_PluginThreadAsyncCall(plugin->npp, PluginData::AsyncCall, (void*)nextPendingCallbackKey);
-        pendingCallbacks.push_back(PendingCallback(plugin->npp, callback, context, nextPendingCallbackKey));
+    if (callback->plugin->npp) {
+        lock.Lock();
+        callback->key = nextPendingCallbackKey;
         if (++nextPendingCallbackKey == 0) {
             ++nextPendingCallbackKey;
         }
-    }
-    lock.Unlock();
-    if (!npp) {
-        if (gPluginThread == qcc::Thread::GetThread()) {
-            context->Destroy();
-        } else {
-            /*
-             * It is not safe to release NPAPI resources from outside the main thread.  So this
-             * could lead to a crash if called, or a memory leak if not called.  Prefer the memory
-             * leak.
-             */
-            QCC_LogError(ER_NONE, ("Leaking callback context"));
-        }
+        NPN_PluginThreadAsyncCall(callback->plugin->npp, PluginData::AsyncCall, (void*)callback->key);
+        pendingCallbacks.push_back(callback);
+        lock.Unlock();
     }
 }
 
-void PluginData::CancelCallback(Plugin& plugin, PluginData::Callback callback, CallbackContext* context)
+void PluginData::DestroyOnMainThread(Plugin& plugin, PluginData::CallbackContext* context)
 {
-    PendingCallback pendingCallback;
     lock.Lock();
     if (plugin->npp) {
-        for (std::list<PendingCallback>::iterator it = pendingCallbacks.begin(); it != pendingCallbacks.end(); ++it) {
-            if ((it->npp == plugin->npp) && (it->callback == callback) && (it->context == context)) {
-                pendingCallback = *it;
+        PluginData::Callback callback(plugin, _DestroyOnMainThread);
+        callback->context = context;
+        callback->key = nextPendingCallbackKey;
+        if (++nextPendingCallbackKey == 0) {
+            ++nextPendingCallbackKey;
+        }
+        NPN_PluginThreadAsyncCall(callback->plugin->npp, PluginData::AsyncCall, (void*)callback->key);
+        pendingCallbacks.push_back(callback);
+    } else {
+        /*
+         * It is not safe to release NPAPI resources from outside the main thread.  So this
+         * could lead to a crash if called, or a memory leak if not called.  Prefer the memory
+         * leak.
+         */
+        QCC_LogError(ER_NONE, ("Leaking callback context"));
+    }
+    lock.Unlock();
+}
+
+void PluginData::CancelCallback(PluginData::Callback& callback)
+{
+    lock.Lock();
+    if (callback->plugin->npp) {
+        for (std::list<Callback>::iterator it = pendingCallbacks.begin(); it != pendingCallbacks.end(); ++it) {
+            if (((*it)->plugin->npp == callback->plugin->npp) && ((*it)->callback == callback->callback) && ((*it)->context == callback->context)) {
                 pendingCallbacks.erase(it);
                 break;
             }
         }
     }
     lock.Unlock();
-    if (pendingCallback.context) {
-        pendingCallback.context->Destroy();
-    }
 }
 
 void PluginData::AsyncCall(void* key)
 {
-    PendingCallback pendingCallback;
+    Callback callback;
     lock.Lock();
-    for (std::list<PendingCallback>::iterator it = pendingCallbacks.begin(); it != pendingCallbacks.end(); ++it) {
-        if (it->key == (uintptr_t)key) {
-            pendingCallback = *it;
+    for (std::list<Callback>::iterator it = pendingCallbacks.begin(); it != pendingCallbacks.end(); ++it) {
+        if ((*it)->key == (uintptr_t)key) {
+            callback = *it;
             pendingCallbacks.erase(it);
             break;
         }
     }
     lock.Unlock();
-    if (pendingCallback.callback) {
-        pendingCallback.callback(pendingCallback.context);
-        if (pendingCallback.context) {
-            pendingCallback.context->Destroy();
-        }
+    if (callback->callback) {
+        callback->callback(callback->context);
+        callback->SetEvent();
     }
 }
 
@@ -172,7 +181,6 @@ PluginData::~PluginData()
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
     lock.Lock();
-    NPP npp = plugin->npp;
     plugin->npp = 0;
 #if defined(QCC_OS_ANDROID)
     if (plugin->context) {
@@ -198,11 +206,11 @@ PluginData::~PluginData()
         }
     }
 
-    for (std::list<PendingCallback>::iterator it = pendingCallbacks.begin(); it != pendingCallbacks.end();) {
-        if (it->npp == npp) {
-            CallbackContext* context = it->context;
+    for (std::list<Callback>::iterator it = pendingCallbacks.begin(); it != pendingCallbacks.end();) {
+        if (plugin.iden((*it)->plugin)) {
+            Callback callback = *it;
+            callback->SetEvent();
             pendingCallbacks.erase(it);
-            context->Destroy();
             /*
              * Can't make any assumptions about the contents of pendingCallbacks after the above
              * call, so reset the iterator.
