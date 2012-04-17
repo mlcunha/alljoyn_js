@@ -93,17 +93,18 @@ class ReplyReceiver : public ajn::ProxyBusObject::Listener, public ajn::MessageR
         : env(this, plugin, busAttachment, proxyBusObject, interfaceName, methodName, replyListenerNative, errorListenerNative, npargs, npargCount) { }
     virtual ~ReplyReceiver() { }
 
-    class IntrospectCBContext : public PluginData::AsyncCallbackContext {
+    class IntrospectCBContext : public PluginData::CallbackContext {
       public:
         Env env;
         QStatus status;
         IntrospectCBContext(Env& env, QStatus status)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , status(status) { }
     };
     virtual void IntrospectCB(QStatus status, ajn::ProxyBusObject* obj, void* context) {
-        PluginData::DispatchCallback(env->plugin, _IntrospectCB, new IntrospectCBContext(env, status));
+        PluginData::Callback callback(env->plugin, _IntrospectCB);
+        callback->context = new IntrospectCBContext(env, status);
+        PluginData::DispatchCallback(callback);
     }
     static void _IntrospectCB(PluginData::CallbackContext* ctx) {
         IntrospectCBContext* context = static_cast<IntrospectCBContext*>(ctx);
@@ -221,21 +222,20 @@ class ReplyReceiver : public ajn::ProxyBusObject::Listener, public ajn::MessageR
         }
     }
 
-    class ReplyHandlerContext : public PluginData::AsyncCallbackContext {
+    class ReplyHandlerContext : public PluginData::CallbackContext {
       public:
         Env env;
         ajn::Message message;
         ReplyHandlerContext(Env& env, ajn::Message& message)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , message(message) { }
     };
     virtual void ReplyHandler(ajn::Message& message, void*) {
-        Plugin plugin = env->plugin;
-        ReplyHandlerContext* context = new ReplyHandlerContext(env, message);
+        PluginData::Callback callback(env->plugin, _ReplyHandler);
+        callback->context = new ReplyHandlerContext(env, message);
         env->thiz = 0;
         delete this;
-        PluginData::DispatchCallback(plugin, _ReplyHandler, context);
+        PluginData::DispatchCallback(callback);
     }
     static void _ReplyHandler(PluginData::CallbackContext* ctx) {
         ReplyHandlerContext* context = static_cast<ReplyHandlerContext*>(ctx);

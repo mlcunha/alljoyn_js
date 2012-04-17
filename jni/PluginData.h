@@ -30,29 +30,28 @@ class PluginData {
   public:
     class CallbackContext {
       public:
-        Plugin plugin;
-        CallbackContext(Plugin& plugin) : plugin(plugin) { }
-        virtual ~CallbackContext() { }
-        virtual void Destroy() = 0;
-    };
-    class AsyncCallbackContext : public CallbackContext {
-      public:
-        AsyncCallbackContext(Plugin& plugin) : CallbackContext(plugin) { }
-        virtual ~AsyncCallbackContext() { }
-        virtual void Destroy();
-    };
-    class SyncCallbackContext : public CallbackContext {
-      public:
-        QStatus status;
         qcc::Event event;
-        SyncCallbackContext(Plugin& plugin) : CallbackContext(plugin), status(ER_ALERTED_THREAD) { }
-        virtual ~SyncCallbackContext() { }
-        virtual void Destroy();
+        QStatus status;
+        CallbackContext() : status(ER_ALERTED_THREAD) { }
+        virtual ~CallbackContext() { }
     };
-    typedef void (*Callback)(CallbackContext* context);
-    static void DispatchCallback(Plugin& plugin, Callback callback, CallbackContext* context);
-    static void CancelCallback(Plugin& plugin, Callback callback, CallbackContext* context);
+    class _Callback {
+      public:
+        void (*callback)(CallbackContext*);
+        CallbackContext* context;
+        Plugin plugin;
+        NPP npp;
+        uintptr_t key;
+        _Callback(Plugin& plugin, void(*callback)(CallbackContext*));
+        _Callback();
+        ~_Callback();
+        void SetEvent();
+    };
+    typedef qcc::ManagedObj<_Callback> Callback;
+    static void DispatchCallback(Callback& callback);
+    static void CancelCallback(Callback& callback);
     static bool StrictEquals(Plugin& plugin, const NPVariant& a, const NPVariant& b);
+    static void DestroyOnMainThread(Plugin& plugin, PluginData::CallbackContext* context);
 
     static QStatus PermissionLevel(Plugin& plugin, const qcc::String& feature, int32_t& level);
     static QStatus SetPermissionLevel(Plugin& plugin, const qcc::String& feature, int32_t level, bool remember);
@@ -80,18 +79,7 @@ class PluginData {
   private:
     static qcc::Mutex lock;
 
-    class PendingCallback {
-      public:
-        NPP npp;
-        Callback callback;
-        CallbackContext* context;
-        uintptr_t key;
-        PendingCallback(NPP npp, Callback callback, CallbackContext* context, uintptr_t key)
-            : npp(npp), callback(callback), context(context), key(key) { }
-        PendingCallback()
-            : npp(0), callback(0), context(0), key(0) { }
-    };
-    static std::list<PendingCallback> pendingCallbacks;
+    static std::list<Callback> pendingCallbacks;
     static uintptr_t nextPendingCallbackKey;
     static void AsyncCall(void* key);
 

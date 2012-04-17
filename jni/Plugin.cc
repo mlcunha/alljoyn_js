@@ -33,6 +33,16 @@ _Plugin::_Plugin(NPP npp)
     QCC_DbgTrace(("%s", __FUNCTION__));
 }
 
+_Plugin::_Plugin()
+    : npp(0)
+#if defined(QCC_OS_ANDROID)
+    , context(0)
+    , securityClient(0)
+#endif
+{
+    QCC_DbgTrace(("%s", __FUNCTION__));
+}
+
 QStatus _Plugin::Initialize()
 {
     QStatus status = ER_OK;

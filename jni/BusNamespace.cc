@@ -179,22 +179,21 @@ class RequestPermissionAsyncCB : public RequestPermissionListener {
         : env(plugin, feature, callbackNative) { QCC_DbgTrace(("%s", __FUNCTION__)); }
     virtual ~RequestPermissionAsyncCB() { QCC_DbgTrace(("%s", __FUNCTION__)); }
 
-    class RequestPermissionCBContext : public PluginData::AsyncCallbackContext {
+    class RequestPermissionCBContext : public PluginData::CallbackContext {
       public:
         Env env;
         int32_t level;
         bool remember;
         RequestPermissionCBContext(Env& env, int32_t level, bool remember)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , level(level)
             , remember(remember) { }
     };
     virtual void RequestPermissionCB(int32_t level, bool remember) {
-        Plugin plugin = env->plugin;
-        RequestPermissionCBContext* context = new RequestPermissionCBContext(env, level, remember);
+        PluginData::Callback callback(env->plugin, _RequestPermissionCB);
+        callback->context = new RequestPermissionCBContext(env, level, remember);
         delete this;
-        PluginData::DispatchCallback(plugin, _RequestPermissionCB, context);
+        PluginData::DispatchCallback(callback);
     }
     static void _RequestPermissionCB(PluginData::CallbackContext* ctx) {
         RequestPermissionCBContext* context = static_cast<RequestPermissionCBContext*>(ctx);

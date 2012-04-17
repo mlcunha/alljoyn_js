@@ -68,21 +68,22 @@ class SignalReceiver : public ajn::MessageReceiver {
         QCC_DbgTrace(("%s this=%p", __FUNCTION__, this));
     }
 
-    class SignalHandlerContext : public PluginData::AsyncCallbackContext {
+    class SignalHandlerContext : public PluginData::CallbackContext {
       public:
         Env env;
         const ajn::InterfaceDescription::Member* member;
         qcc::String sourcePath;
         ajn::Message message;
         SignalHandlerContext(Env& env, const ajn::InterfaceDescription::Member* member, const char* sourcePath, ajn::Message& message)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , member(member)
             , sourcePath(sourcePath)
             , message(message) { }
     };
     virtual void SignalHandler(const ajn::InterfaceDescription::Member* member, const char* sourcePath, ajn::Message& message) {
-        PluginData::DispatchCallback(env->plugin, _SignalHandler, new SignalHandlerContext(env, member, sourcePath, message));
+        PluginData::Callback callback(env->plugin, _SignalHandler);
+        callback->context = new SignalHandlerContext(env, member, sourcePath, message);
+        PluginData::DispatchCallback(callback);
     }
     static void _SignalHandler(PluginData::CallbackContext* ctx) {
         SignalHandlerContext* context = static_cast<SignalHandlerContext*>(ctx);
@@ -122,13 +123,12 @@ class BusListener : public ajn::BusListener {
         : env(plugin, busAttachmentHost, busAttachment, busListenerNative) { }
     virtual ~BusListener() { }
 
-    class ListenerRegisteredContext : public PluginData::AsyncCallbackContext {
+    class ListenerRegisteredContext : public PluginData::CallbackContext {
       public:
         Env env;
         BusAttachmentHost busAttachmentHost;
         ListenerRegisteredContext(Env& env, BusAttachmentHost& busAttachmentHost)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , busAttachmentHost(busAttachmentHost) { }
     };
     virtual void ListenerRegistered(ajn::BusAttachment* bus) {
@@ -138,115 +138,123 @@ class BusListener : public ajn::BusListener {
          * dispatched callback below (_ListenerRegistered).
          */
         BusAttachmentHost busAttachmentHost(env->busAttachmentHost);
-        PluginData::DispatchCallback(env->plugin, _ListenerRegistered, new ListenerRegisteredContext(env, busAttachmentHost));
+        PluginData::Callback callback(env->plugin, _ListenerRegistered);
+        callback->context = new ListenerRegisteredContext(env, busAttachmentHost);
+        PluginData::DispatchCallback(callback);
     }
     static void _ListenerRegistered(PluginData::CallbackContext* ctx) {
         ListenerRegisteredContext* context = static_cast<ListenerRegisteredContext*>(ctx);
         context->env->busListenerNative->onRegistered(context->busAttachmentHost);
     }
 
-    class ListenerUnregisteredContext : public PluginData::AsyncCallbackContext {
+    class ListenerUnregisteredContext : public PluginData::CallbackContext {
       public:
         Env env;
         ListenerUnregisteredContext(Env& env)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env) { }
+            : env(env) { }
     };
     virtual void ListenerUnregistered() {
-        PluginData::DispatchCallback(env->plugin, _ListenerUnregistered, new ListenerUnregisteredContext(env));
+        PluginData::Callback callback(env->plugin, _ListenerUnregistered);
+        callback->context = new ListenerUnregisteredContext(env);
+        PluginData::DispatchCallback(callback);
     }
     static void _ListenerUnregistered(PluginData::CallbackContext* ctx) {
         ListenerUnregisteredContext* context = static_cast<ListenerUnregisteredContext*>(ctx);
         context->env->busListenerNative->onUnregistered();
     }
 
-    class FoundAdvertisedNameContext : public PluginData::AsyncCallbackContext {
+    class FoundAdvertisedNameContext : public PluginData::CallbackContext {
       public:
         Env env;
         qcc::String name;
         ajn::TransportMask transport;
         qcc::String namePrefix;
         FoundAdvertisedNameContext(Env& env, const char* name, ajn::TransportMask transport, const char* namePrefix)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , name(name)
             , transport(transport)
             , namePrefix(namePrefix) { }
     };
     virtual void FoundAdvertisedName(const char* name, ajn::TransportMask transport, const char* namePrefix) {
-        PluginData::DispatchCallback(env->plugin, _FoundAdvertisedName, new FoundAdvertisedNameContext(env, name, transport, namePrefix));
+        PluginData::Callback callback(env->plugin, _FoundAdvertisedName);
+        callback->context = new FoundAdvertisedNameContext(env, name, transport, namePrefix);
+        PluginData::DispatchCallback(callback);
     }
     static void _FoundAdvertisedName(PluginData::CallbackContext* ctx) {
         FoundAdvertisedNameContext* context = static_cast<FoundAdvertisedNameContext*>(ctx);
         context->env->busListenerNative->onFoundAdvertisedName(context->name, context->transport, context->namePrefix);
     }
 
-    class LostAdvertisedNameContext : public PluginData::AsyncCallbackContext {
+    class LostAdvertisedNameContext : public PluginData::CallbackContext {
       public:
         Env env;
         qcc::String name;
         ajn::TransportMask transport;
         qcc::String namePrefix;
         LostAdvertisedNameContext(Env& env, const char* name, ajn::TransportMask transport, const char* namePrefix)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , name(name)
             , transport(transport)
             , namePrefix(namePrefix) { }
     };
     virtual void LostAdvertisedName(const char* name, ajn::TransportMask transport, const char* namePrefix) {
-        PluginData::DispatchCallback(env->plugin, _LostAdvertisedName, new LostAdvertisedNameContext(env, name, transport, namePrefix));
+        PluginData::Callback callback(env->plugin, _LostAdvertisedName);
+        callback->context = new LostAdvertisedNameContext(env, name, transport, namePrefix);
+        PluginData::DispatchCallback(callback);
     }
     static void _LostAdvertisedName(PluginData::CallbackContext* ctx) {
         LostAdvertisedNameContext* context = static_cast<LostAdvertisedNameContext*>(ctx);
         context->env->busListenerNative->onLostAdvertisedName(context->name, context->transport, context->namePrefix);
     }
 
-    class NameOwnerChangedContext : public PluginData::AsyncCallbackContext {
+    class NameOwnerChangedContext : public PluginData::CallbackContext {
       public:
         Env env;
         qcc::String busName;
         qcc::String previousOwner;
         qcc::String newOwner;
         NameOwnerChangedContext(Env& env, const char* busName, const char* previousOwner, const char* newOwner)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , busName(busName)
             , previousOwner(previousOwner)
             , newOwner(newOwner) { }
     };
     virtual void NameOwnerChanged(const char* busName, const char* previousOwner, const char* newOwner) {
-        PluginData::DispatchCallback(env->plugin, _NameOwnerChanged, new NameOwnerChangedContext(env, busName, previousOwner, newOwner));
+        PluginData::Callback callback(env->plugin, _NameOwnerChanged);
+        callback->context = new NameOwnerChangedContext(env, busName, previousOwner, newOwner);
+        PluginData::DispatchCallback(callback);
     }
     static void _NameOwnerChanged(PluginData::CallbackContext* ctx) {
         NameOwnerChangedContext* context = static_cast<NameOwnerChangedContext*>(ctx);
         context->env->busListenerNative->onNameOwnerChanged(context->busName, context->previousOwner, context->newOwner);
     }
 
-    class BusStoppingContext : public PluginData::AsyncCallbackContext {
+    class BusStoppingContext : public PluginData::CallbackContext {
       public:
         Env env;
         BusStoppingContext(Env& env)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env) { }
+            : env(env) { }
     };
     virtual void BusStopping() {
-        PluginData::DispatchCallback(env->plugin, _BusStopping, new BusStoppingContext(env));
+        PluginData::Callback callback(env->plugin, _BusStopping);
+        callback->context = new BusStoppingContext(env);
+        PluginData::DispatchCallback(callback);
     }
     static void _BusStopping(PluginData::CallbackContext* ctx) {
         BusStoppingContext* context = static_cast<BusStoppingContext*>(ctx);
         context->env->busListenerNative->onStopping();
     }
 
-    class BusDisconnectedContext : public PluginData::AsyncCallbackContext {
+    class BusDisconnectedContext : public PluginData::CallbackContext {
       public:
         Env env;
         BusDisconnectedContext(Env& env)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env) { }
+            : env(env) { }
     };
     virtual void BusDisconnected() {
-        PluginData::DispatchCallback(env->plugin, _BusDisconnected, new BusDisconnectedContext(env));
+        PluginData::Callback callback(env->plugin, _BusDisconnected);
+        callback->context = new BusDisconnectedContext(env);
+        PluginData::DispatchCallback(callback);
     }
     static void _BusDisconnected(PluginData::CallbackContext* ctx) {
         BusDisconnectedContext* context = static_cast<BusDisconnectedContext*>(ctx);
@@ -288,22 +296,22 @@ class SessionPortListener : public ajn::SessionPortListener, public ajn::Session
         : env(plugin, busAttachment, acceptSessionListenerNative, sessionJoinedListenerNative, sessionLostListenerNative, sessionMemberAddedListenerNative, sessionMemberRemovedListenerNative) { }
     virtual ~SessionPortListener() { }
 
-    class AcceptSessionJoinerContext : public PluginData::SyncCallbackContext {
+    class AcceptSessionJoinerContext : public PluginData::CallbackContext {
       public:
         Env env;
         ajn::SessionPort sessionPort;
         qcc::String joiner;
         const ajn::SessionOpts opts;
         AcceptSessionJoinerContext(Env& env, ajn::SessionPort sessionPort, const char* joiner, const ajn::SessionOpts& opts)
-            : PluginData::SyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , sessionPort(sessionPort)
             , joiner(joiner)
             , opts(opts) { }
     };
     virtual bool AcceptSessionJoiner(ajn::SessionPort sessionPort, const char* joiner, const ajn::SessionOpts& opts) {
-        AcceptSessionJoinerContext context(env, sessionPort, joiner, opts);
-        PluginData::DispatchCallback(env->plugin, _AcceptSessionJoiner, &context);
+        PluginData::Callback callback(env->plugin, _AcceptSessionJoiner);
+        callback->context = new AcceptSessionJoinerContext(env, sessionPort, joiner, opts);
+        PluginData::DispatchCallback(callback);
         /*
          * Complex processing here to prevent UI thread from deadlocking if it ends up calling
          * unbindSessionPort.
@@ -314,7 +322,7 @@ class SessionPortListener : public ajn::SessionPortListener, public ajn::Session
          * is run it does nothing.
          */
         std::vector<qcc::Event*> check;
-        check.push_back(&context.event);
+        check.push_back(&callback->context->event);
         check.push_back(&cancelEvent);
         std::vector<qcc::Event*> signaled;
         signaled.clear();
@@ -325,13 +333,12 @@ class SessionPortListener : public ajn::SessionPortListener, public ajn::Session
         }
         for (std::vector<qcc::Event*>::iterator i = signaled.begin(); i != signaled.end(); ++i) {
             if (*i == &cancelEvent) {
-                PluginData::CancelCallback(env->plugin, _AcceptSessionJoiner, &context);
-                qcc::Event::Wait(context.event);
-                context.status = ER_ALERTED_THREAD;
+                PluginData::CancelCallback(callback);
+                callback->context->status = ER_ALERTED_THREAD;
                 break;
             }
         }
-        return (ER_OK == context.status);
+        return (ER_OK == callback->context->status);
     }
     static void _AcceptSessionJoiner(PluginData::CallbackContext* ctx) {
         AcceptSessionJoinerContext* context = static_cast<AcceptSessionJoinerContext*>(ctx);
@@ -344,15 +351,14 @@ class SessionPortListener : public ajn::SessionPortListener, public ajn::Session
         }
     }
 
-    class SessionJoinedContext : public PluginData::AsyncCallbackContext {
+    class SessionJoinedContext : public PluginData::CallbackContext {
       public:
         Env env;
         ajn::SessionPort sessionPort;
         ajn::SessionId id;
         qcc::String joiner;
         SessionJoinedContext(Env& env, ajn::SessionPort sessionPort, ajn::SessionId id, const char* joiner)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , sessionPort(sessionPort)
             , id(id)
             , joiner(joiner) { }
@@ -368,7 +374,9 @@ class SessionPortListener : public ajn::SessionPortListener, public ajn::Session
                 QCC_LogError(status, ("SetSessionListener failed"));
             }
         }
-        PluginData::DispatchCallback(env->plugin, _SessionJoined, new SessionJoinedContext(env, sessionPort, id, joiner));
+        PluginData::Callback callback(env->plugin, _SessionJoined);
+        callback->context = new SessionJoinedContext(env, sessionPort, id, joiner);
+        PluginData::DispatchCallback(callback);
     }
     static void _SessionJoined(PluginData::CallbackContext* ctx) {
         SessionJoinedContext* context = static_cast<SessionJoinedContext*>(ctx);
@@ -377,17 +385,18 @@ class SessionPortListener : public ajn::SessionPortListener, public ajn::Session
         }
     }
 
-    class SessionLostContext : public PluginData::AsyncCallbackContext {
+    class SessionLostContext : public PluginData::CallbackContext {
       public:
         Env env;
         ajn::SessionId id;
         SessionLostContext(Env& env, ajn::SessionId id)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , id(id) { }
     };
     virtual void SessionLost(ajn::SessionId id) {
-        PluginData::DispatchCallback(env->plugin, _SessionLost, new SessionLostContext(env, id));
+        PluginData::Callback callback(env->plugin, _SessionLost);
+        callback->context = new SessionLostContext(env, id);
+        PluginData::DispatchCallback(callback);
     }
     static void _SessionLost(PluginData::CallbackContext* ctx) {
         SessionLostContext* context = static_cast<SessionLostContext*>(ctx);
@@ -396,19 +405,20 @@ class SessionPortListener : public ajn::SessionPortListener, public ajn::Session
         }
     }
 
-    class SessionMemberAddedContext : public PluginData::AsyncCallbackContext {
+    class SessionMemberAddedContext : public PluginData::CallbackContext {
       public:
         Env env;
         ajn::SessionId id;
         qcc::String uniqueName;
         SessionMemberAddedContext(Env& env, ajn::SessionId id, const char* uniqueName)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , id(id)
             , uniqueName(uniqueName) { }
     };
     virtual void SessionMemberAdded(ajn::SessionId id, const char* uniqueName) {
-        PluginData::DispatchCallback(env->plugin, _SessionMemberAdded, new SessionMemberAddedContext(env, id, uniqueName));
+        PluginData::Callback callback(env->plugin, _SessionMemberAdded);
+        callback->context = new SessionMemberAddedContext(env, id, uniqueName);
+        PluginData::DispatchCallback(callback);
     }
     static void _SessionMemberAdded(PluginData::CallbackContext* ctx) {
         SessionMemberAddedContext* context = static_cast<SessionMemberAddedContext*>(ctx);
@@ -417,19 +427,20 @@ class SessionPortListener : public ajn::SessionPortListener, public ajn::Session
         }
     }
 
-    class SessionMemberRemovedContext : public PluginData::AsyncCallbackContext {
+    class SessionMemberRemovedContext : public PluginData::CallbackContext {
       public:
         Env env;
         ajn::SessionId id;
         qcc::String uniqueName;
         SessionMemberRemovedContext(Env& env, ajn::SessionId id, const char* uniqueName)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , id(id)
             , uniqueName(uniqueName) { }
     };
     virtual void SessionMemberRemoved(ajn::SessionId id, const char* uniqueName) {
-        PluginData::DispatchCallback(env->plugin, _SessionMemberRemoved, new SessionMemberRemovedContext(env, id, uniqueName));
+        PluginData::Callback callback(env->plugin, _SessionMemberRemoved);
+        callback->context = new SessionMemberRemovedContext(env, id, uniqueName);
+        PluginData::DispatchCallback(callback);
     }
     static void _SessionMemberRemoved(PluginData::CallbackContext* ctx) {
         SessionMemberRemovedContext* context = static_cast<SessionMemberRemovedContext*>(ctx);
@@ -466,17 +477,18 @@ class SessionListener : public ajn::SessionListener {
         : env(plugin, busAttachment, sessionLostListenerNative, sessionMemberAddedListenerNative, sessionMemberRemovedListenerNative) { }
     virtual ~SessionListener() { }
 
-    class SessionLostContext : public PluginData::AsyncCallbackContext {
+    class SessionLostContext : public PluginData::CallbackContext {
       public:
         Env env;
         ajn::SessionId id;
         SessionLostContext(Env& env, ajn::SessionId id)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , id(id) { }
     };
     virtual void SessionLost(ajn::SessionId id) {
-        PluginData::DispatchCallback(env->plugin, _SessionLost, new SessionLostContext(env, id));
+        PluginData::Callback callback(env->plugin, _SessionLost);
+        callback->context = new SessionLostContext(env, id);
+        PluginData::DispatchCallback(callback);
     }
     static void _SessionLost(PluginData::CallbackContext* ctx) {
         SessionLostContext* context = static_cast<SessionLostContext*>(ctx);
@@ -485,19 +497,20 @@ class SessionListener : public ajn::SessionListener {
         }
     }
 
-    class SessionMemberAddedContext : public PluginData::AsyncCallbackContext {
+    class SessionMemberAddedContext : public PluginData::CallbackContext {
       public:
         Env env;
         ajn::SessionId id;
         qcc::String uniqueName;
         SessionMemberAddedContext(Env& env, ajn::SessionId id, const char* uniqueName)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , id(id)
             , uniqueName(uniqueName) { }
     };
     virtual void SessionMemberAdded(ajn::SessionId id, const char* uniqueName) {
-        PluginData::DispatchCallback(env->plugin, _SessionMemberAdded, new SessionMemberAddedContext(env, id, uniqueName));
+        PluginData::Callback callback(env->plugin, _SessionMemberAdded);
+        callback->context = new SessionMemberAddedContext(env, id, uniqueName);
+        PluginData::DispatchCallback(callback);
     }
     static void _SessionMemberAdded(PluginData::CallbackContext* ctx) {
         SessionMemberAddedContext* context = static_cast<SessionMemberAddedContext*>(ctx);
@@ -506,19 +519,20 @@ class SessionListener : public ajn::SessionListener {
         }
     }
 
-    class SessionMemberRemovedContext : public PluginData::AsyncCallbackContext {
+    class SessionMemberRemovedContext : public PluginData::CallbackContext {
       public:
         Env env;
         ajn::SessionId id;
         qcc::String uniqueName;
         SessionMemberRemovedContext(Env& env, ajn::SessionId id, const char* uniqueName)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , id(id)
             , uniqueName(uniqueName) { }
     };
     virtual void SessionMemberRemoved(ajn::SessionId id, const char* uniqueName) {
-        PluginData::DispatchCallback(env->plugin, _SessionMemberRemoved, new SessionMemberRemovedContext(env, id, uniqueName));
+        PluginData::Callback callback(env->plugin, _SessionMemberRemoved);
+        callback->context = new SessionMemberRemovedContext(env, id, uniqueName);
+        PluginData::DispatchCallback(callback);
     }
     static void _SessionMemberRemoved(PluginData::CallbackContext* ctx) {
         SessionMemberRemovedContext* context = static_cast<SessionMemberRemovedContext*>(ctx);
@@ -557,24 +571,24 @@ class JoinSessionAsyncCB : public ajn::BusAttachment::JoinSessionAsyncCB {
         : env(plugin, busAttachmentHost, busAttachment, successListenerNative, errorListenerNative, sessionListener) { }
     virtual ~JoinSessionAsyncCB() { }
 
-    class JoinSessionCBContext : public PluginData::AsyncCallbackContext {
+    class JoinSessionCBContext : public PluginData::CallbackContext {
       public:
         Env env;
         QStatus status;
         ajn::SessionId sessionId;
         ajn::SessionOpts sessionOpts;
         JoinSessionCBContext(Env& env, QStatus status, ajn::SessionId sessionId, ajn::SessionOpts sessionOpts)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , status(status)
             , sessionId(sessionId)
             , sessionOpts(sessionOpts) { }
     };
     virtual void JoinSessionCB(QStatus status, ajn::SessionId sessionId, const ajn::SessionOpts& opts, void*) {
         Plugin plugin = env->plugin;
-        JoinSessionCBContext* context = new JoinSessionCBContext(env, status, sessionId, opts);
+        PluginData::Callback callback(env->plugin, _JoinSessionCB);
+        callback->context = new JoinSessionCBContext(env, status, sessionId, opts);
         delete this;
-        PluginData::DispatchCallback(plugin, _JoinSessionCB, context);
+        PluginData::DispatchCallback(callback);
     }
     static void _JoinSessionCB(PluginData::CallbackContext* ctx) {
         JoinSessionCBContext* context = static_cast<JoinSessionCBContext*>(ctx);
@@ -676,19 +690,20 @@ class BusObjectListener : public _BusObjectListener {
         return status;
     }
 
-    class MethodHandlerContext : public PluginData::AsyncCallbackContext {
+    class MethodHandlerContext : public PluginData::CallbackContext {
       public:
         Env env;
         const ajn::InterfaceDescription::Member* member;
         ajn::Message message;
         MethodHandlerContext(Env& env, const ajn::InterfaceDescription::Member* member, ajn::Message& message)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , member(member)
             , message(message) { }
     };
     void MethodHandler(const ajn::InterfaceDescription::Member* member, ajn::Message& message) {
-        PluginData::DispatchCallback(env->plugin, _MethodHandler, new MethodHandlerContext(env, member, message));
+        PluginData::Callback callback(env->plugin, _MethodHandler);
+        callback->context = new MethodHandlerContext(env, member, message);
+        PluginData::DispatchCallback(callback);
     }
     static void _MethodHandler(PluginData::CallbackContext* ctx) {
         MethodHandlerContext* context = static_cast<MethodHandlerContext*>(ctx);
@@ -699,54 +714,56 @@ class BusObjectListener : public _BusObjectListener {
         context->env->busObjectNative->onMessage(context->member->iface->GetName(), context->member->name.c_str(), messageReplyHost, args, numArgs);
     }
 
-    class ObjectRegisteredContext : public PluginData::AsyncCallbackContext {
+    class ObjectRegisteredContext : public PluginData::CallbackContext {
       public:
         Env env;
         ObjectRegisteredContext(Env& env)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env) { }
+            : env(env) { }
     };
     virtual void ObjectRegistered() {
-        PluginData::DispatchCallback(env->plugin, _ObjectRegistered, new ObjectRegisteredContext(env));
+        PluginData::Callback callback(env->plugin, _ObjectRegistered);
+        callback->context = new ObjectRegisteredContext(env);
+        PluginData::DispatchCallback(callback);
     }
     static void _ObjectRegistered(PluginData::CallbackContext* ctx) {
         ObjectRegisteredContext* context = static_cast<ObjectRegisteredContext*>(ctx);
         context->env->busObjectNative->onRegistered();
     }
 
-    class ObjectUnregisteredContext : public PluginData::AsyncCallbackContext {
+    class ObjectUnregisteredContext : public PluginData::CallbackContext {
       public:
         Env env;
         ObjectUnregisteredContext(Env& env)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env) { }
+            : env(env) { }
     };
     virtual void ObjectUnregistered() {
-        PluginData::DispatchCallback(env->plugin, _ObjectUnregistered, new ObjectUnregisteredContext(env));
+        PluginData::Callback callback(env->plugin, _ObjectUnregistered);
+        callback->context = new ObjectUnregisteredContext(env);
+        PluginData::DispatchCallback(callback);
     }
     static void _ObjectUnregistered(PluginData::CallbackContext* ctx) {
         ObjectUnregisteredContext* context = static_cast<ObjectUnregisteredContext*>(ctx);
         context->env->busObjectNative->onUnregistered();
     }
 
-    class GetContext : public PluginData::SyncCallbackContext {
+    class GetContext : public PluginData::CallbackContext {
       public:
         Env env;
         qcc::String ifcName;
         qcc::String propName;
         ajn::MsgArg& val;
         GetContext(Env& env, const char* ifcName, const char* propName, ajn::MsgArg& val)
-            : PluginData::SyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , ifcName(ifcName)
             , propName(propName)
             , val(val) { }
     };
     virtual QStatus Get(const char* ifcName, const char* propName, ajn::MsgArg& val) {
-        GetContext context(env, ifcName, propName, val);
-        PluginData::DispatchCallback(env->plugin, _Get, &context);
-        qcc::Event::Wait(context.event);
-        return context.status;
+        PluginData::Callback callback(env->plugin, _Get);
+        callback->context = new GetContext(env, ifcName, propName, val);
+        PluginData::DispatchCallback(callback);
+        qcc::Event::Wait(callback->context->event);
+        return callback->context->status;
     }
     static void _Get(PluginData::CallbackContext* ctx) {
         GetContext* context = static_cast<GetContext*>(ctx);
@@ -763,24 +780,24 @@ class BusObjectListener : public _BusObjectListener {
         context->status = context->env->busObjectNative->get(interface, property, context->val);
     }
 
-    class SetContext : public PluginData::SyncCallbackContext {
+    class SetContext : public PluginData::CallbackContext {
       public:
         Env env;
         qcc::String ifcName;
         qcc::String propName;
         ajn::MsgArg& val;
         SetContext(Env& env, const char* ifcName, const char* propName, ajn::MsgArg& val)
-            : PluginData::SyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , ifcName(ifcName)
             , propName(propName)
             , val(val) { }
     };
     virtual QStatus Set(const char* ifcName, const char* propName, ajn::MsgArg& val) {
-        SetContext context(env, ifcName, propName, val);
-        PluginData::DispatchCallback(env->plugin, _Set, &context);
-        qcc::Event::Wait(context.event);
-        return context.status;
+        PluginData::Callback callback(env->plugin, _Set);
+        callback->context = new SetContext(env, ifcName, propName, val);
+        PluginData::DispatchCallback(callback);
+        qcc::Event::Wait(callback->context->event);
+        return callback->context->status;
     }
     static void _Set(PluginData::CallbackContext* ctx) {
         SetContext* context = static_cast<SetContext*>(ctx);
@@ -797,24 +814,24 @@ class BusObjectListener : public _BusObjectListener {
         context->status = context->env->busObjectNative->set(interface, property, context->val);
     }
 
-    class GenerateIntrospectionContext : public PluginData::SyncCallbackContext {
+    class GenerateIntrospectionContext : public PluginData::CallbackContext {
       public:
         Env env;
         bool deep;
         size_t indent;
         qcc::String& introspection;
         GenerateIntrospectionContext(Env& env, bool deep, size_t indent, qcc::String& introspection)
-            : PluginData::SyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , deep(deep)
             , indent(indent)
             , introspection(introspection) { }
     };
     virtual QStatus GenerateIntrospection(bool deep, size_t indent, qcc::String& introspection) const {
-        GenerateIntrospectionContext context(env, deep, indent, introspection);
-        PluginData::DispatchCallback(env->plugin, _GenerateIntrospection, &context);
-        qcc::Event::Wait(context.event);
-        return context.status;
+        PluginData::Callback callback(env->plugin, _GenerateIntrospection);
+        callback->context = new GenerateIntrospectionContext(env, deep, indent, introspection);
+        PluginData::DispatchCallback(callback);
+        qcc::Event::Wait(callback->context->event);
+        return callback->context->status;
     }
     static void _GenerateIntrospection(PluginData::CallbackContext* ctx) {
         GenerateIntrospectionContext* context = static_cast<GenerateIntrospectionContext*>(ctx);
@@ -850,7 +867,7 @@ class AuthListener : public ajn::AuthListener {
         QCC_DbgTrace(("~AuthListener %p", this));
     }
 
-    class RequestCredentialsContext : public PluginData::SyncCallbackContext {
+    class RequestCredentialsContext : public PluginData::CallbackContext {
       public:
         Env env;
         qcc::String authMechanism;
@@ -858,10 +875,9 @@ class AuthListener : public ajn::AuthListener {
         uint16_t authCount;
         qcc::String userName;
         uint16_t credMask;
-        Credentials& credentials;
+        Credentials credentials;
         RequestCredentialsContext(Env& env, const char* authMechanism, const char* peerName, uint16_t authCount, const char* userName, uint16_t credMask, Credentials& credentials)
-            : PluginData::SyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , authMechanism(authMechanism)
             , peerName(peerName)
             , authCount(authCount)
@@ -872,8 +888,9 @@ class AuthListener : public ajn::AuthListener {
     virtual bool RequestCredentials(const char* authMechanism, const char* peerName, uint16_t authCount, const char* userName, uint16_t credMask, Credentials& credentials) {
         QCC_DbgTrace(("%s(authMechanism=%s,peerName=%s,authCount=%u,userName=%s,credMask=0x%04x)",
                       __FUNCTION__, authMechanism, peerName, authCount, userName, credMask));
-        RequestCredentialsContext context(env, authMechanism, peerName, authCount, userName, credMask, credentials);
-        PluginData::DispatchCallback(env->plugin, _RequestCredentials, &context);
+        PluginData::Callback callback(env->plugin, _RequestCredentials);
+        callback->context = new RequestCredentialsContext(env, authMechanism, peerName, authCount, userName, credMask, credentials);
+        PluginData::DispatchCallback(callback);
         /*
          * Complex processing here to prevent UI thread from deadlocking if _BusAttachmentHost
          * destructor is called.
@@ -884,7 +901,7 @@ class AuthListener : public ajn::AuthListener {
          * context so that when the dispatched callback is run it does nothing.
          */
         std::vector<qcc::Event*> check;
-        check.push_back(&context.event);
+        check.push_back(&callback->context->event);
         check.push_back(&cancelEvent);
         std::vector<qcc::Event*> signaled;
         signaled.clear();
@@ -895,13 +912,13 @@ class AuthListener : public ajn::AuthListener {
         }
         for (std::vector<qcc::Event*>::iterator i = signaled.begin(); i != signaled.end(); ++i) {
             if (*i == &cancelEvent) {
-                PluginData::CancelCallback(env->plugin, _RequestCredentials, &context);
-                qcc::Event::Wait(context.event);
-                context.status = ER_ALERTED_THREAD;
+                PluginData::CancelCallback(callback);
+                callback->context->status = ER_ALERTED_THREAD;
                 break;
             }
         }
-        return (ER_OK == context.status);
+        credentials = static_cast<RequestCredentialsContext*>(callback->context)->credentials;
+        return (ER_OK == callback->context->status);
     }
     static void _RequestCredentials(PluginData::CallbackContext* ctx) {
         RequestCredentialsContext* context = static_cast<RequestCredentialsContext*>(ctx);
@@ -914,25 +931,25 @@ class AuthListener : public ajn::AuthListener {
         }
     }
 
-    class VerifyCredentialsContext : public PluginData::SyncCallbackContext {
+    class VerifyCredentialsContext : public PluginData::CallbackContext {
       public:
         Env env;
         qcc::String authMechanism;
         qcc::String peerName;
         Credentials credentials;
         VerifyCredentialsContext(Env& env, const char* authMechanism, const char* peerName, const Credentials& credentials)
-            : PluginData::SyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , authMechanism(authMechanism)
             , peerName(peerName)
             , credentials(credentials) { }
     };
     virtual bool VerifyCredentials(const char* authMechanism, const char* peerName, const Credentials& credentials) {
         QCC_DbgTrace(("%s(authMechanism=%s,peerName=%s)", __FUNCTION__, authMechanism, peerName));
-        VerifyCredentialsContext context(env, authMechanism, peerName, credentials);
-        PluginData::DispatchCallback(env->plugin, _VerifyCredentials, &context);
+        PluginData::Callback callback(env->plugin, _VerifyCredentials);
+        callback->context = new VerifyCredentialsContext(env, authMechanism, peerName, credentials);
+        PluginData::DispatchCallback(callback);
         std::vector<qcc::Event*> check;
-        check.push_back(&context.event);
+        check.push_back(&callback->context->event);
         check.push_back(&cancelEvent);
         std::vector<qcc::Event*> signaled;
         signaled.clear();
@@ -943,13 +960,12 @@ class AuthListener : public ajn::AuthListener {
         }
         for (std::vector<qcc::Event*>::iterator i = signaled.begin(); i != signaled.end(); ++i) {
             if (*i == &cancelEvent) {
-                PluginData::CancelCallback(env->plugin, _VerifyCredentials, &context);
-                qcc::Event::Wait(context.event);
-                context.status = ER_ALERTED_THREAD;
+                PluginData::CancelCallback(callback);
+                callback->context->status = ER_ALERTED_THREAD;
                 break;
             }
         }
-        return (ER_OK == context.status);
+        return (ER_OK == callback->context->status);
     }
     static void _VerifyCredentials(PluginData::CallbackContext* ctx) {
         VerifyCredentialsContext* context = static_cast<VerifyCredentialsContext*>(ctx);
@@ -962,20 +978,21 @@ class AuthListener : public ajn::AuthListener {
         }
     }
 
-    class SecurityViolationContext : public PluginData::AsyncCallbackContext {
+    class SecurityViolationContext : public PluginData::CallbackContext {
       public:
         Env env;
         QStatus violation;
         ajn::Message message;
         SecurityViolationContext(Env& env, QStatus violation, const ajn::Message& message)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , violation(violation)
             , message(message) { }
     };
     virtual void SecurityViolation(QStatus status, const ajn::Message& message) {
         QCC_DbgTrace(("%s(status=%s,msg=%s)", __FUNCTION__, QCC_StatusText(status), message->ToString().c_str()));
-        PluginData::DispatchCallback(env->plugin, _SecurityViolation, new SecurityViolationContext(env, status, message));
+        PluginData::Callback callback(env->plugin, _SecurityViolation);
+        callback->context = new SecurityViolationContext(env, status, message);
+        PluginData::DispatchCallback(callback);
     }
     static void _SecurityViolation(PluginData::CallbackContext* ctx) {
         SecurityViolationContext* context = static_cast<SecurityViolationContext*>(ctx);
@@ -985,22 +1002,23 @@ class AuthListener : public ajn::AuthListener {
         }
     }
 
-    class AuthenticationCompleteContext : public PluginData::AsyncCallbackContext {
+    class AuthenticationCompleteContext : public PluginData::CallbackContext {
       public:
         Env env;
         qcc::String authMechanism;
         qcc::String peerName;
         bool success;
         AuthenticationCompleteContext(Env& env, const char* authMechanism, const char* peerName, bool success)
-            : PluginData::AsyncCallbackContext(env->plugin)
-            , env(env)
+            : env(env)
             , authMechanism(authMechanism)
             , peerName(peerName)
             , success(success) { }
     };
     virtual void AuthenticationComplete(const char* authMechanism, const char* peerName, bool success) {
         QCC_DbgTrace(("%s(authMechanism=%s,peerName=%s,success=%d)", __FUNCTION__, authMechanism, peerName, success));
-        PluginData::DispatchCallback(env->plugin, _AuthenticationComplete, new AuthenticationCompleteContext(env, authMechanism, peerName, success));
+        PluginData::Callback callback(env->plugin, _AuthenticationComplete);
+        callback->context = new AuthenticationCompleteContext(env, authMechanism, peerName, success);
+        PluginData::DispatchCallback(callback);
     }
     static void _AuthenticationComplete(PluginData::CallbackContext* ctx) {
         AuthenticationCompleteContext* context = static_cast<AuthenticationCompleteContext*>(ctx);
