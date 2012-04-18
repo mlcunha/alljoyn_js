@@ -77,12 +77,14 @@ CXXFLAGS=-Wall \
 
 ifeq "$(CPU)" "x86"
 # Force 32-bit builds
-    CXXFLAGS+=-m32
-    CFLAGS+=-m32
+    CXXFLAGS+=-m32 -pthread
+    CFLAGS+=-m32 -pthread
+    LINKFLAGS+=-m32 -pthread
 else
     ifeq "$(CPU)" "x86-64"
-        CXXFLAGS+=-m64 -fPIC
-        CFLAGS+=-m64 -fPIC
+        CXXFLAGS+=-m64 -fPIC -pthread
+        CFLAGS+=-m64 -fPIC -pthread
+	    LINKFLAGS+=-m64 -pthread
     endif
 endif
 
@@ -102,7 +104,6 @@ endif
 # Header/lib path include
 INCLUDE = -I$(PWD)/../common/inc -I$(PWD)/../alljoyn_core/inc -I$(PWD)/../alljoyn_core/src -I$(PWD)/../alljoyn_core/daemon
 
-LIBS = -lalljoyn
 # Platform specifics system libs
 ifeq "$(OS)" "linux"
     LIBS += -lrt -lstdc++ -lpthread -lcrypto
