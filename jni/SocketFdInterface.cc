@@ -42,6 +42,7 @@ bool _SocketFdInterface::Construct(const NPVariant* args, uint32_t argCount, NPV
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
 
+    QStatus status = ER_OK;
     bool typeError = false;
     qcc::String fd;
     const char* nptr;
@@ -65,6 +66,13 @@ bool _SocketFdInterface::Construct(const NPVariant* args, uint32_t argCount, NPV
         plugin->RaiseTypeError("argument 0 is not a socket descriptor");
         goto exit;
     }
+    if (qcc::INVALID_SOCKET_FD != socketFd) {
+        status = qcc::SocketDup(socketFd, socketFd);
+        if (ER_OK != status) {
+            QCC_LogError(status, ("SocketDup failed"));
+            goto exit;
+        }
+    }
 
     {
         SocketFdHost socketFdHost(plugin, socketFd);
@@ -72,9 +80,12 @@ bool _SocketFdInterface::Construct(const NPVariant* args, uint32_t argCount, NPV
     }
 
 exit:
-    if (!typeError) {
+    if ((ER_OK == status) && !typeError) {
         return true;
     } else {
+        if (ER_OK != status) {
+            plugin->RaiseBusError(status);
+        }
         return false;
     }
 }
