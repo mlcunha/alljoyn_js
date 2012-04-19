@@ -1093,6 +1093,13 @@ _BusAttachmentHost::_BusAttachmentHost(Plugin& plugin, const char* applicationNa
 _BusAttachmentHost::~_BusAttachmentHost()
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
+
+    /*
+     * This step is necessary to ensure that all callbacks have completed before we delete them below.
+     */
+    busAttachment->Stop();
+    busAttachment->Join();
+
     for (std::map<NPIdentifier, BusObjectListener*>::iterator it = busObjectListeners.begin(); it != busObjectListeners.end(); ++it) {
         BusObjectListener* busObjectListener = it->second;
         busAttachment->UnregisterBusObject(*busObjectListener->env->busObject);
