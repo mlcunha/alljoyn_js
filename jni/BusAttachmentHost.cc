@@ -2013,7 +2013,7 @@ bool _BusAttachmentHost::setSessionListener(const NPVariant* args, uint32_t argC
     SessionMemberAddedListenerNative* sessionMemberAddedListenerNative = 0;
     SessionMemberRemovedListenerNative* sessionMemberRemovedListenerNative = 0;
     SessionListener* sessionListener = 0;
-    QStatus status;
+    QStatus status = ER_OK;
 
     NPVariant variant;
     bool typeError = false;
