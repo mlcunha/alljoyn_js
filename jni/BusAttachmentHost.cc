@@ -751,7 +751,7 @@ class BusObjectListener : public _BusObjectListener {
         Env env;
         qcc::String ifcName;
         qcc::String propName;
-        ajn::MsgArg& val;
+        ajn::MsgArg val;
         GetContext(Env& env, const char* ifcName, const char* propName, ajn::MsgArg& val)
             : env(env)
             , ifcName(ifcName)
@@ -763,6 +763,7 @@ class BusObjectListener : public _BusObjectListener {
         callback->context = new GetContext(env, ifcName, propName, val);
         PluginData::DispatchCallback(callback);
         qcc::Event::Wait(callback->context->event);
+        val = static_cast<GetContext*>(callback->context)->val;
         return callback->context->status;
     }
     static void _Get(PluginData::CallbackContext* ctx) {
@@ -785,7 +786,7 @@ class BusObjectListener : public _BusObjectListener {
         Env env;
         qcc::String ifcName;
         qcc::String propName;
-        ajn::MsgArg& val;
+        ajn::MsgArg val;
         SetContext(Env& env, const char* ifcName, const char* propName, ajn::MsgArg& val)
             : env(env)
             , ifcName(ifcName)
@@ -819,7 +820,7 @@ class BusObjectListener : public _BusObjectListener {
         Env env;
         bool deep;
         size_t indent;
-        qcc::String& introspection;
+        qcc::String introspection;
         GenerateIntrospectionContext(Env& env, bool deep, size_t indent, qcc::String& introspection)
             : env(env)
             , deep(deep)
@@ -831,6 +832,7 @@ class BusObjectListener : public _BusObjectListener {
         callback->context = new GenerateIntrospectionContext(env, deep, indent, introspection);
         PluginData::DispatchCallback(callback);
         qcc::Event::Wait(callback->context->event);
+        introspection = static_cast<GenerateIntrospectionContext*>(callback->context)->introspection;
         return callback->context->status;
     }
     static void _GenerateIntrospection(PluginData::CallbackContext* ctx) {
