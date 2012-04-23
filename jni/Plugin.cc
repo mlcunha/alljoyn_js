@@ -319,14 +319,6 @@ void _Plugin::CheckError(NPObject* npobj)
     if (!_error.name.empty()) {
         error = _error;
         _error.Clear();
-        if (error.message.empty()) {
-            /*
-             * Sending an empty string to JavaScriptCore causes it to assert fail, so send NULL
-             * here instead.
-             */
-            NPN_SetException(npobj, NULL);
-        } else {
-            NPN_SetException(npobj, error.message.c_str());
-        }
+        NPN_SetException(npobj, error.name.c_str());
     }
 }
