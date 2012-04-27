@@ -100,6 +100,16 @@ class ReplyReceiver : public ajn::ProxyBusObject::Listener, public ajn::MessageR
         IntrospectCBContext(Env& env, QStatus status)
             : env(env)
             , status(status) { }
+        virtual ~IntrospectCBContext() {
+            if ((ER_OK == env->status) && !env->replyListenerNative) {
+                ReplyReceiver* thiz = env->thiz;
+                env->thiz = 0;
+                delete thiz;
+            } else if (ER_OK != env->status) {
+                ajn::Message message(*env->busAttachment);
+                env->thiz->ReplyHandler(message, 0);
+            }
+        }
     };
     virtual void IntrospectCB(QStatus status, ajn::ProxyBusObject* obj, void* context) {
         PluginData::Callback callback(env->plugin, _IntrospectCB);
@@ -212,14 +222,6 @@ class ReplyReceiver : public ajn::ProxyBusObject::Listener, public ajn::MessageR
 
     exit:
         delete[] args;
-        if ((ER_OK == env->status) && !env->replyListenerNative) {
-            ReplyReceiver* thiz = env->thiz;
-            env->thiz = 0;
-            delete thiz;
-        } else if (ER_OK != env->status) {
-            ajn::Message message(*env->busAttachment);
-            env->thiz->ReplyHandler(message, 0);
-        }
     }
 
     class ReplyHandlerContext : public PluginData::CallbackContext {
