@@ -1097,9 +1097,24 @@ _BusAttachmentHost::~_BusAttachmentHost()
     QCC_DbgTrace(("%s", __FUNCTION__));
 
     /*
-     * This step is necessary to ensure that all callbacks have completed before we delete them below.
+     * Ensure that all callbacks are complete before we start deleting things.
      */
     busAttachment->Stop();
+    for (std::map<ajn::SessionPort, SessionPortListener*>::iterator it = sessionPortListeners.begin(); it != sessionPortListeners.end(); ++it) {
+        SessionPortListener* sessionPortListener = it->second;
+        QStatus status = sessionPortListener->cancelEvent.SetEvent();
+        assert(ER_OK == status);
+        if (ER_OK != status) {
+            QCC_LogError(status, ("SetEvent failed")); /* Small chance of deadlock if this occurs. */
+        }
+    }
+    if (authListener) {
+        QStatus status = authListener->cancelEvent.SetEvent();
+        assert(ER_OK == status);
+        if (ER_OK != status) {
+            QCC_LogError(status, ("SetEvent failed")); /* Small chance of deadlock if this occurs. */
+        }
+    }
     busAttachment->Join();
 
     for (std::map<NPIdentifier, BusObjectListener*>::iterator it = busObjectListeners.begin(); it != busObjectListeners.end(); ++it) {
@@ -1114,11 +1129,6 @@ _BusAttachmentHost::~_BusAttachmentHost()
     }
     for (std::map<ajn::SessionPort, SessionPortListener*>::iterator it = sessionPortListeners.begin(); it != sessionPortListeners.end(); ++it) {
         SessionPortListener* sessionPortListener = it->second;
-        QStatus status = sessionPortListener->cancelEvent.SetEvent();
-        assert(ER_OK == status);
-        if (ER_OK != status) {
-            QCC_LogError(status, ("SetEvent failed")); /* Small chance of deadlock if this occurs. */
-        }
         busAttachment->UnbindSessionPort(it->first);
         delete sessionPortListener;
     }
@@ -1137,11 +1147,6 @@ _BusAttachmentHost::~_BusAttachmentHost()
         delete signalReceiver;
     }
     if (authListener) {
-        QStatus status = authListener->cancelEvent.SetEvent();
-        assert(ER_OK == status);
-        if (ER_OK != status) {
-            QCC_LogError(status, ("SetEvent failed")); /* Small chance of deadlock if this occurs. */
-        }
         busAttachment->EnablePeerSecurity(0, 0, 0, true);
         delete authListener;
     }
