@@ -22,16 +22,16 @@
 class ScriptableObject {
   public:
     ScriptableObject(Plugin& plugin);
-    ScriptableObject(Plugin& plugin, std::map<NPIdentifier, int32_t>& constants);
+    ScriptableObject(Plugin& plugin, std::map<qcc::String, int32_t>& constants);
     virtual ~ScriptableObject();
     virtual void Invalidate();
-    virtual bool HasMethod(NPIdentifier name);
-    virtual bool Invoke(NPIdentifier name, const NPVariant* args, uint32_t argCount, NPVariant* result);
+    virtual bool HasMethod(const qcc::String& name);
+    virtual bool Invoke(const qcc::String& name, const NPVariant* args, uint32_t argCount, NPVariant* result);
     virtual bool InvokeDefault(const NPVariant* args, uint32_t argCount, NPVariant* result);
-    virtual bool HasProperty(NPIdentifier name);
-    virtual bool GetProperty(NPIdentifier name, NPVariant* result);
-    virtual bool SetProperty(NPIdentifier name, const NPVariant* value);
-    virtual bool RemoveProperty(NPIdentifier name);
+    virtual bool HasProperty(const qcc::String& name);
+    virtual bool GetProperty(const qcc::String& name, NPVariant* result);
+    virtual bool SetProperty(const qcc::String& name, const NPVariant* value);
+    virtual bool RemoveProperty(const qcc::String& name);
     virtual bool Enumerate(NPIdentifier** value, uint32_t* count);
     virtual bool Construct(const NPVariant* args, uint32_t argCount, NPVariant* result);
 
@@ -52,14 +52,14 @@ class ScriptableObject {
         Operation(Call call) : call(call) { }
         Operation() : call(0) { }
     };
-    typedef bool (ScriptableObject::*Getter)(NPIdentifier name, NPVariant* result);
-    typedef bool (ScriptableObject::*Setter)(NPIdentifier name, const NPVariant* value);
-    typedef bool (ScriptableObject::*Deleter)(NPIdentifier name);
+    typedef bool (ScriptableObject::*Getter)(const qcc::String& name, NPVariant* result);
+    typedef bool (ScriptableObject::*Setter)(const qcc::String& name, const NPVariant* value);
+    typedef bool (ScriptableObject::*Deleter)(const qcc::String& name);
     typedef bool (ScriptableObject::*Enumerator)(NPIdentifier** value, uint32_t* count);
     typedef bool (ScriptableObject::*Caller)(const NPVariant* args, uint32_t argCount, NPVariant* result);
     Plugin plugin;
-    std::map<NPIdentifier, Attribute> attributes;
-    std::map<NPIdentifier, Operation> operations;
+    std::map<qcc::String, Attribute> attributes;
+    std::map<qcc::String, Operation> operations;
     Getter getter;
     Setter setter;
     Deleter deleter;
@@ -67,13 +67,13 @@ class ScriptableObject {
     Caller caller;
 
   private:
-    static std::map<NPIdentifier, int32_t> noConstants;
-    std::map<NPIdentifier, int32_t>& constants; /* Constants are shared between interface and host objects */
+    static std::map<qcc::String, int32_t> noConstants;
+    std::map<qcc::String, int32_t>& constants; /* Constants are shared between interface and host objects */
 };
 
-#define CONSTANT(name, value) constants[NPN_GetStringIdentifier(name)] = (value)
-#define ATTRIBUTE(name, get, set) attributes[NPN_GetStringIdentifier(name)] = Attribute(static_cast<Get>(get), static_cast<Set>(set))
-#define OPERATION(name, call) operations[NPN_GetStringIdentifier(name)] = Operation(static_cast<Call>(call))
+#define CONSTANT(name, value) constants[name] = (value)
+#define ATTRIBUTE(name, get, set) attributes[name] = Attribute(static_cast<Get>(get), static_cast<Set>(set))
+#define OPERATION(name, call) operations[name] = Operation(static_cast<Call>(call))
 #define GETTER(customGetter) getter = static_cast<Getter>(customGetter)
 #define SETTER(customSetter) setter = static_cast<Setter>(customSetter)
 #define DELETER(customDeleter) deleter = static_cast<Deleter>(customDeleter)

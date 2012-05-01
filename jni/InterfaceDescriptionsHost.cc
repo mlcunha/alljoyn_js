@@ -50,18 +50,16 @@ _InterfaceDescriptionsHost::_InterfaceDescriptionsHost(Plugin& plugin, BusAttach
 _InterfaceDescriptionsHost::~_InterfaceDescriptionsHost()
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
-    for (std::map<NPIdentifier, InterfaceDescription*>::iterator it = interfaceDescriptions.begin(); it != interfaceDescriptions.end(); ++it) {
+    for (std::map<qcc::String, InterfaceDescription*>::iterator it = interfaceDescriptions.begin(); it != interfaceDescriptions.end(); ++it) {
         delete it->second;
     }
 }
 
-bool _InterfaceDescriptionsHost::HasProperty(NPIdentifier name)
+bool _InterfaceDescriptionsHost::HasProperty(const qcc::String& name)
 {
     bool has = ScriptableObject::HasProperty(name);
-    if (!has && NPN_IdentifierIsString(name)) {
-        NPUTF8* interfaceName = NPN_UTF8FromIdentifier(name);
-        has = ajn::IsLegalInterfaceName(interfaceName);
-        NPN_MemFree(interfaceName);
+    if (!has) {
+        has = ajn::IsLegalInterfaceName(name.c_str());
     }
     return has;
 }
@@ -91,7 +89,7 @@ exit:
     return !typeError;
 }
 
-bool _InterfaceDescriptionsHost::createInterfaceDescription(NPIdentifier name, const NPVariant* value)
+bool _InterfaceDescriptionsHost::createInterfaceDescription(const qcc::String& name, const NPVariant* value)
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
 
@@ -99,7 +97,6 @@ bool _InterfaceDescriptionsHost::createInterfaceDescription(NPIdentifier name, c
     InterfaceDescription* interfaceDescription = 0;
     bool typeError = false;
     ajn::InterfaceDescription* interface;
-    NPUTF8* interfaceName;
     NPVariant length;
     NPVariant method;
     NPVariant signal;
@@ -120,9 +117,7 @@ bool _InterfaceDescriptionsHost::createInterfaceDescription(NPIdentifier name, c
         BOOLEAN_TO_NPVARIANT(false, secure);
     }
 
-    interfaceName = NPN_UTF8FromIdentifier(name);
-    status = busAttachment->CreateInterface(interfaceName, interface, ToBoolean(plugin, secure, typeError));
-    NPN_MemFree(interfaceName);
+    status = busAttachment->CreateInterface(name.c_str(), interface, ToBoolean(plugin, secure, typeError));
     assert(!typeError); /* ToBoolean should never fail */
     if (typeError) {
         status = ER_FAIL;
@@ -331,7 +326,7 @@ bool _InterfaceDescriptionsHost::createInterfaceDescription(NPIdentifier name, c
 
     interfaceDescription = new InterfaceDescription(interfaceDescriptionNative);
     interfaceDescriptionNative = 0; /* interfaceDescription now owns interfaceDescriptionNative */
-    interfaceDescriptions.insert(std::pair<NPIdentifier, InterfaceDescription*>(name, interfaceDescription));
+    interfaceDescriptions.insert(std::pair<qcc::String, InterfaceDescription*>(name, interfaceDescription));
     interfaceDescription = 0; /* interfaceDescriptions now owns interfaceDescriptionNative */
 
 exit:
@@ -347,16 +342,15 @@ exit:
     }
 }
 
-bool _InterfaceDescriptionsHost::getInterfaceDescription(NPIdentifier name, NPVariant* result)
+bool _InterfaceDescriptionsHost::getInterfaceDescription(const qcc::String& name, NPVariant* result)
 {
-    std::map<NPIdentifier, InterfaceDescription*>::iterator it = interfaceDescriptions.find(name);
+    std::map<qcc::String, InterfaceDescription*>::iterator it = interfaceDescriptions.find(name);
     if (it != interfaceDescriptions.end()) {
         InterfaceDescription* interfaceDescription = it->second;
         ToNativeObject<InterfaceDescriptionNative>(plugin, interfaceDescription->interfaceDescriptionNative, *result);
         return true;
     } else {
-        NPUTF8* interfaceName = NPN_UTF8FromIdentifier(name);
-        const ajn::InterfaceDescription* iface = busAttachment->GetInterface(interfaceName);
+        const ajn::InterfaceDescription* iface = busAttachment->GetInterface(name.c_str());
         if (iface) {
             NPVariant value = NPVARIANT_VOID;
             size_t numMembers = 0;
@@ -590,7 +584,7 @@ bool _InterfaceDescriptionsHost::getInterfaceDescription(NPIdentifier name, NPVa
             interfaceDescription = new InterfaceDescription(interfaceDescriptionNative);
             interfaceDescriptionNative = 0; /* interfaceDescription now owns interfaceDescriptionNative */
             ToNativeObject<InterfaceDescriptionNative>(plugin, interfaceDescription->interfaceDescriptionNative, *result);
-            interfaceDescriptions.insert(std::pair<NPIdentifier, InterfaceDescription*>(name, interfaceDescription));
+            interfaceDescriptions.insert(std::pair<qcc::String, InterfaceDescription*>(name, interfaceDescription));
             interfaceDescription = 0; /* interfaceDescriptions now owns interfaceDescriptionNative */
 
         exit:
@@ -608,7 +602,6 @@ bool _InterfaceDescriptionsHost::getInterfaceDescription(NPIdentifier name, NPVa
         } else {
             VOID_TO_NPVARIANT(*result);
         }
-        NPN_MemFree(interfaceName);
         return true;
     }
 }

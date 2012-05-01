@@ -25,7 +25,7 @@
 
 #define CALL_MEMBER(o, m) ((*o).*(m))
 
-std::map<NPIdentifier, int32_t> ScriptableObject::noConstants;
+std::map<qcc::String, int32_t> ScriptableObject::noConstants;
 
 ScriptableObject::ScriptableObject(Plugin& plugin)
     : plugin(plugin)
@@ -39,7 +39,7 @@ ScriptableObject::ScriptableObject(Plugin& plugin)
     QCC_DbgTrace(("%s", __FUNCTION__));
 }
 
-ScriptableObject::ScriptableObject(Plugin& plugin, std::map<NPIdentifier, int32_t>& constants)
+ScriptableObject::ScriptableObject(Plugin& plugin, std::map<qcc::String, int32_t>& constants)
     : plugin(plugin)
     , getter(0)
     , setter(0)
@@ -61,25 +61,21 @@ void ScriptableObject::Invalidate()
     QCC_DbgTrace(("%s", __FUNCTION__));
 }
 
-bool ScriptableObject::HasMethod(NPIdentifier name)
+bool ScriptableObject::HasMethod(const qcc::String& name)
 {
 #if !defined(NDEBUG)
-    NPUTF8* nm = NPN_UTF8FromIdentifier(name);
-    QCC_DbgTrace(("%s(name=%s)", __FUNCTION__, nm));
-    NPN_MemFree(nm);
+    QCC_DbgTrace(("%s(name=%s)", __FUNCTION__, name.c_str()));
 #endif
-    std::map<NPIdentifier, Operation>::iterator it = operations.find(name);
+    std::map<qcc::String, Operation>::iterator it = operations.find(name);
     return (it != operations.end());
 }
 
-bool ScriptableObject::Invoke(NPIdentifier name, const NPVariant* args, uint32_t argCount, NPVariant* result)
+bool ScriptableObject::Invoke(const qcc::String& name, const NPVariant* args, uint32_t argCount, NPVariant* result)
 {
 #if !defined(NDEBUG)
-    NPUTF8* nm = NPN_UTF8FromIdentifier(name);
-    QCC_DbgTrace(("%s(name=%s)", __FUNCTION__, nm));
-    NPN_MemFree(nm);
+    QCC_DbgTrace(("%s(name=%s)", __FUNCTION__, name.c_str()));
 #endif
-    std::map<NPIdentifier, Operation>::iterator it = operations.find(name);
+    std::map<qcc::String, Operation>::iterator it = operations.find(name);
     if (it != operations.end()) {
         assert(it->second.call);
         return CALL_MEMBER(this, it->second.call) (args, argCount, result);
@@ -96,42 +92,30 @@ bool ScriptableObject::InvokeDefault(const NPVariant* args, uint32_t argCount, N
     return false;
 }
 
-bool ScriptableObject::HasProperty(NPIdentifier name)
+bool ScriptableObject::HasProperty(const qcc::String& name)
 {
 #if !defined(NDEBUG)
-    if (NPN_IdentifierIsString(name)) {
-        NPUTF8* nm = NPN_UTF8FromIdentifier(name);
-        QCC_DbgTrace(("%s(name=%s)", __FUNCTION__, nm));
-        NPN_MemFree(nm);
-    } else {
-        QCC_DbgTrace(("%s(name=%d)", __FUNCTION__, NPN_IntFromIdentifier(name)));
-    }
+    QCC_DbgTrace(("%s(name=%s)", __FUNCTION__, name.c_str()));
 #endif
-    std::map<NPIdentifier, int32_t>::iterator cit = constants.find(name);
+    std::map<qcc::String, int32_t>::iterator cit = constants.find(name);
     if (cit != constants.end()) {
         return true;
     }
-    std::map<NPIdentifier, Attribute>::iterator ait = attributes.find(name);
+    std::map<qcc::String, Attribute>::iterator ait = attributes.find(name);
     return (ait != attributes.end());
 }
 
-bool ScriptableObject::GetProperty(NPIdentifier name, NPVariant* result)
+bool ScriptableObject::GetProperty(const qcc::String& name, NPVariant* result)
 {
 #if !defined(NDEBUG)
-    if (NPN_IdentifierIsString(name)) {
-        NPUTF8* nm = NPN_UTF8FromIdentifier(name);
-        QCC_DbgTrace(("%s(name=%s)", __FUNCTION__, nm));
-        NPN_MemFree(nm);
-    } else {
-        QCC_DbgTrace(("%s(name=%d)", __FUNCTION__, NPN_IntFromIdentifier(name)));
-    }
+    QCC_DbgTrace(("%s(name=%s)", __FUNCTION__, name.c_str()));
 #endif
-    std::map<NPIdentifier, int32_t>::iterator cit = constants.find(name);
+    std::map<qcc::String, int32_t>::iterator cit = constants.find(name);
     if (cit != constants.end()) {
         INT32_TO_NPVARIANT(cit->second, *result);
         return true;
     }
-    std::map<NPIdentifier, Attribute>::iterator ait = attributes.find(name);
+    std::map<qcc::String, Attribute>::iterator ait = attributes.find(name);
     if (ait != attributes.end()) {
         assert(ait->second.get);
         return CALL_MEMBER(this, ait->second.get) (result);
@@ -142,16 +126,10 @@ bool ScriptableObject::GetProperty(NPIdentifier name, NPVariant* result)
     return false;
 }
 
-bool ScriptableObject::SetProperty(NPIdentifier name, const NPVariant* value)
+bool ScriptableObject::SetProperty(const qcc::String& name, const NPVariant* value)
 {
 #if !defined(NDEBUG)
-    if (NPN_IdentifierIsString(name)) {
-        NPUTF8* nm = NPN_UTF8FromIdentifier(name);
-        QCC_DbgTrace(("%s(name=%s)", __FUNCTION__, nm));
-        NPN_MemFree(nm);
-    } else {
-        QCC_DbgTrace(("%s(name=%d)", __FUNCTION__, NPN_IntFromIdentifier(name)));
-    }
+    QCC_DbgTrace(("%s(name=%s)", __FUNCTION__, name.c_str()));
 #endif
     /*
      * Workaround for WebKit browsers.  "delete obj.property" doesn't call RemoveProperty, so allow
@@ -161,7 +139,7 @@ bool ScriptableObject::SetProperty(NPIdentifier name, const NPVariant* value)
         return RemoveProperty(name);
     }
 
-    std::map<NPIdentifier, Attribute>::iterator it = attributes.find(name);
+    std::map<qcc::String, Attribute>::iterator it = attributes.find(name);
     if ((it != attributes.end()) && it->second.set) {
         return CALL_MEMBER(this, it->second.set) (value);
     }
@@ -171,16 +149,10 @@ bool ScriptableObject::SetProperty(NPIdentifier name, const NPVariant* value)
     return false;
 }
 
-bool ScriptableObject::RemoveProperty(NPIdentifier name)
+bool ScriptableObject::RemoveProperty(const qcc::String& name)
 {
 #if !defined(NDEBUG)
-    if (NPN_IdentifierIsString(name)) {
-        NPUTF8* nm = NPN_UTF8FromIdentifier(name);
-        QCC_DbgTrace(("%s(name=%s)", __FUNCTION__, nm));
-        NPN_MemFree(nm);
-    } else {
-        QCC_DbgTrace(("%s(name=%d)", __FUNCTION__, NPN_IntFromIdentifier(name)));
-    }
+    QCC_DbgTrace(("%s(name=%s)", __FUNCTION__, name.c_str()));
 #endif
     if (deleter) {
         return CALL_MEMBER(this, deleter) (name);
@@ -210,14 +182,14 @@ bool ScriptableObject::Enumerate(NPIdentifier** value, uint32_t* count)
         if (enumeratorValue) {
             NPN_MemFree(enumeratorValue);
         }
-        for (std::map<NPIdentifier, int32_t>::iterator it = constants.begin(); it != constants.end(); ++it) {
-            *v++ = it->first;
+        for (std::map<qcc::String, int32_t>::iterator it = constants.begin(); it != constants.end(); ++it) {
+            *v++ = NPN_GetStringIdentifier(it->first.c_str());
         }
-        for (std::map<NPIdentifier, Attribute>::iterator it = attributes.begin(); it != attributes.end(); ++it) {
-            *v++ = it->first;
+        for (std::map<qcc::String, Attribute>::iterator it = attributes.begin(); it != attributes.end(); ++it) {
+            *v++ = NPN_GetStringIdentifier(it->first.c_str());
         }
-        for (std::map<NPIdentifier, Operation>::iterator it = operations.begin(); it != operations.end(); ++it) {
-            *v++ = it->first;
+        for (std::map<qcc::String, Operation>::iterator it = operations.begin(); it != operations.end(); ++it) {
+            *v++ = NPN_GetStringIdentifier(it->first.c_str());
         }
     }
     return true;

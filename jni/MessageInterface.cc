@@ -19,9 +19,9 @@
 
 #define QCC_MODULE "ALLJOYN_JS"
 
-std::map<NPIdentifier, int32_t> _MessageInterface::constants;
+std::map<qcc::String, int32_t> _MessageInterface::constants;
 
-std::map<NPIdentifier, int32_t>& _MessageInterface::Constants()
+std::map<qcc::String, int32_t>& _MessageInterface::Constants()
 {
     if (constants.empty()) {
         CONSTANT("ALLJOYN_FLAG_NO_REPLY_EXPECTED", 0x01);

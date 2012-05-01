@@ -19,9 +19,9 @@
 
 #define QCC_MODULE "ALLJOYN_JS"
 
-std::map<NPIdentifier, int32_t> _CredentialsInterface::constants;
+std::map<qcc::String, int32_t> _CredentialsInterface::constants;
 
-std::map<NPIdentifier, int32_t>& _CredentialsInterface::Constants()
+std::map<qcc::String, int32_t>& _CredentialsInterface::Constants()
 {
     if (constants.empty()) {
         CONSTANT("PASSWORD",          0x0001);

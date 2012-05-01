@@ -19,9 +19,9 @@
 
 #define QCC_MODULE "ALLJOYN_JS"
 
-std::map<NPIdentifier, int32_t> _SessionOptsInterface::constants;
+std::map<qcc::String, int32_t> _SessionOptsInterface::constants;
 
-std::map<NPIdentifier, int32_t>& _SessionOptsInterface::Constants()
+std::map<qcc::String, int32_t>& _SessionOptsInterface::Constants()
 {
     if (constants.empty()) {
         CONSTANT("TRAFFIC_MESSAGES",       0x01);

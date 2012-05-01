@@ -26,15 +26,15 @@ class _InterfaceDescriptionsHost : public ScriptableObject {
   public:
     _InterfaceDescriptionsHost(Plugin& plugin, BusAttachment& busAttachment);
     virtual ~_InterfaceDescriptionsHost();
-    virtual bool HasProperty(NPIdentifier name);
+    virtual bool HasProperty(const qcc::String& name);
 
   private:
     BusAttachment busAttachment;
-    std::map<NPIdentifier, InterfaceDescription*> interfaceDescriptions;
+    std::map<qcc::String, InterfaceDescription*> interfaceDescriptions;
 
     bool parseXML(const NPVariant* args, uint32_t argCount, NPVariant* result);
-    bool createInterfaceDescription(NPIdentifier name, const NPVariant* value);
-    bool getInterfaceDescription(NPIdentifier name, NPVariant* result);
+    bool createInterfaceDescription(const qcc::String& name, const NPVariant* value);
+    bool getInterfaceDescription(const qcc::String& name, NPVariant* result);
     bool enumerateInterfaceDescriptions(NPIdentifier** value, uint32_t* count);
 };
 

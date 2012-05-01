@@ -21,12 +21,12 @@
 
 class _BusErrorInterface : public ScriptableObject {
   public:
-    static std::map<NPIdentifier, int32_t>& Constants();
+    static std::map<qcc::String, int32_t>& Constants();
     _BusErrorInterface(Plugin& plugin);
     virtual ~_BusErrorInterface();
 
   private:
-    static std::map<NPIdentifier, int32_t> constants;
+    static std::map<qcc::String, int32_t> constants;
     bool getName(NPVariant* result);
     bool getMessage(NPVariant* result);
     bool getCode(NPVariant* result);

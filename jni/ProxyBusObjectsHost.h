@@ -26,13 +26,13 @@ class _ProxyBusObjectsHost : public ScriptableObject {
   public:
     _ProxyBusObjectsHost(Plugin& plugin, BusAttachment& busAttachment);
     virtual ~_ProxyBusObjectsHost();
-    virtual bool HasProperty(NPIdentifier name);
+    virtual bool HasProperty(const qcc::String& name);
 
   private:
     BusAttachment busAttachment;
-    std::map<NPIdentifier, ProxyBusObjectHost> proxyBusObjects;
+    std::map<qcc::String, ProxyBusObjectHost> proxyBusObjects;
 
-    bool getProxyBusObject(NPIdentifier name, NPVariant* result);
+    bool getProxyBusObject(const qcc::String& name, NPVariant* result);
 
     /**
      * Parse the name string into its components.
@@ -42,7 +42,7 @@ class _ProxyBusObjectsHost : public ScriptableObject {
      * @param[out] path a D-Bus object path
      * @param[out] argMap a map of args from the args component of name: ":<name>=<value>[,<name>=<value>]"
      */
-    void ParseName(NPIdentifier name, qcc::String& serviceName, qcc::String& path, std::map<qcc::String, qcc::String>& argMap);
+    void ParseName(const qcc::String& name, qcc::String& serviceName, qcc::String& path, std::map<qcc::String, qcc::String>& argMap);
 };
 
 typedef qcc::ManagedObj<_ProxyBusObjectsHost> ProxyBusObjectsHost;

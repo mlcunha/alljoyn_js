@@ -23,9 +23,9 @@
 
 #define QCC_MODULE "ALLJOYN_JS"
 
-std::map<NPIdentifier, int32_t> _BusNamespace::constants;
+std::map<qcc::String, int32_t> _BusNamespace::constants;
 
-std::map<NPIdentifier, int32_t>& _BusNamespace::Constants()
+std::map<qcc::String, int32_t>& _BusNamespace::Constants()
 {
     if (constants.empty()) {
         CONSTANT("USER_ALLOWED", USER_ALLOWED);

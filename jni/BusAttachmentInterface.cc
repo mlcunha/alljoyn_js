@@ -23,9 +23,9 @@
 
 #define QCC_MODULE "ALLJOYN_JS"
 
-std::map<NPIdentifier, int32_t> _BusAttachmentInterface::constants;
+std::map<qcc::String, int32_t> _BusAttachmentInterface::constants;
 
-std::map<NPIdentifier, int32_t>& _BusAttachmentInterface::Constants()
+std::map<qcc::String, int32_t>& _BusAttachmentInterface::Constants()
 {
     if (constants.empty()) {
         CONSTANT("DBUS_NAME_FLAG_ALLOW_REPLACEMENT", 0x01);

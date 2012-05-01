@@ -28,13 +28,13 @@ class _ProxyBusObjectHost : public ScriptableObject {
     _ProxyBusObjectHost(Plugin& plugin, BusAttachment& busAttachment, const char* serviceName, const char* path, ajn::SessionId sessionId);
     _ProxyBusObjectHost(Plugin& plugin, BusAttachment& busAttachment, ajn::ProxyBusObject* proxyBusObject);
     virtual ~_ProxyBusObjectHost();
-    virtual bool HasProperty(NPIdentifier name);
+    virtual bool HasProperty(const qcc::String& name);
 
   private:
     BusAttachment busAttachment;
     ProxyBusObject proxyBusObject;
     _ProxyBusObjectHostImpl* impl; /* Hide declaration of ProxyChildrenHost to get around recursive include. */
-    std::map<NPIdentifier, ProxyInterfaceHost> proxyInterfaces;
+    std::map<qcc::String, ProxyInterfaceHost> proxyInterfaces;
 
     void Initialize();
 
@@ -46,7 +46,7 @@ class _ProxyBusObjectHost : public ScriptableObject {
     bool parseXML(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool secureConnection(const NPVariant* args, uint32_t argCount, NPVariant* result);
 
-    bool getProxyInterface(NPIdentifier name, NPVariant* result);
+    bool getProxyInterface(const qcc::String& name, NPVariant* result);
     bool enumerateProxyInterfaces(NPIdentifier** value, uint32_t* count);
 };
 

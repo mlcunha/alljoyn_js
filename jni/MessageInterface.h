@@ -21,12 +21,12 @@
 
 class _MessageInterface : public ScriptableObject {
   public:
-    static std::map<NPIdentifier, int32_t>& Constants();
+    static std::map<qcc::String, int32_t>& Constants();
     _MessageInterface(Plugin& plugin);
     virtual ~_MessageInterface();
 
   private:
-    static std::map<NPIdentifier, int32_t> constants;
+    static std::map<qcc::String, int32_t> constants;
 };
 
 typedef qcc::ManagedObj<_MessageInterface> MessageInterface;

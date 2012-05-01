@@ -28,15 +28,15 @@ class _ProxyInterfaceHost : public ScriptableObject {
   public:
     _ProxyInterfaceHost(Plugin& plugin, BusAttachment& busAttachment, ProxyBusObject& proxyBusObject, const char* interfaceName);
     virtual ~_ProxyInterfaceHost();
-    virtual bool HasProperty(NPIdentifier name);
+    virtual bool HasProperty(const qcc::String& name);
 
   private:
     BusAttachment busAttachment;
     ProxyBusObject proxyBusObject;
     qcc::String interfaceName;
-    std::map<NPIdentifier, ProxyMethodHost> proxyMethods;
+    std::map<qcc::String, ProxyMethodHost> proxyMethods;
 
-    bool getProxyMethod(NPIdentifier name, NPVariant* result);
+    bool getProxyMethod(const qcc::String& name, NPVariant* result);
     bool enumerateProxyMethods(NPIdentifier** value, uint32_t* count);
 };
 

@@ -21,13 +21,13 @@
 
 class _BusAttachmentInterface : public ScriptableObject {
   public:
-    static std::map<NPIdentifier, int32_t>& Constants();
+    static std::map<qcc::String, int32_t>& Constants();
     _BusAttachmentInterface(Plugin& plugin);
     virtual ~_BusAttachmentInterface();
     virtual bool Construct(const NPVariant* args, uint32_t argCount, NPVariant* result);
 
   private:
-    static std::map<NPIdentifier, int32_t> constants;
+    static std::map<qcc::String, int32_t> constants;
 };
 
 typedef qcc::ManagedObj<_BusAttachmentInterface> BusAttachmentInterface;
