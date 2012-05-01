@@ -1117,7 +1117,7 @@ _BusAttachmentHost::~_BusAttachmentHost()
     }
     busAttachment->Join();
 
-    for (std::map<NPIdentifier, BusObjectListener*>::iterator it = busObjectListeners.begin(); it != busObjectListeners.end(); ++it) {
+    for (std::map<qcc::String, BusObjectListener*>::iterator it = busObjectListeners.begin(); it != busObjectListeners.end(); ++it) {
         BusObjectListener* busObjectListener = it->second;
         busAttachment->UnregisterBusObject(*busObjectListener->env->busObject);
         delete busObjectListener;
@@ -1152,7 +1152,7 @@ _BusAttachmentHost::~_BusAttachmentHost()
     }
 }
 
-bool _BusAttachmentHost::HasProperty(NPIdentifier name)
+bool _BusAttachmentHost::HasProperty(const qcc::String& name)
 {
     /*
      * The first instinct would be just to check busObjectListeners for the name, but in order to set a
@@ -1160,10 +1160,8 @@ bool _BusAttachmentHost::HasProperty(NPIdentifier name)
      * so return true for any valid object path.
      */
     bool has = ScriptableObject::HasProperty(name);
-    if (!has && NPN_IdentifierIsString(name)) {
-        NPUTF8* path = NPN_UTF8FromIdentifier(name);
-        has = ajn::IsLegalObjectPath(path);
-        NPN_MemFree(path);
+    if (!has) {
+        has = ajn::IsLegalObjectPath(name.c_str());
     }
     return has;
 }
@@ -1315,10 +1313,11 @@ exit:
     return !typeError;
 }
 
-bool _BusAttachmentHost::getBusObject(NPIdentifier name, NPVariant* result)
+bool _BusAttachmentHost::getBusObject(const qcc::String& name, NPVariant* result)
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
-    std::map<NPIdentifier, BusObjectListener*>::iterator it = busObjectListeners.find(name);
+
+    std::map<qcc::String, BusObjectListener*>::iterator it = busObjectListeners.find(name);
     if (it != busObjectListeners.end()) {
         BusObjectListener* busObjectListener = it->second;
         ToNativeObject<BusObjectNative>(plugin, busObjectListener->env->busObjectNative, *result);
@@ -1328,11 +1327,11 @@ bool _BusAttachmentHost::getBusObject(NPIdentifier name, NPVariant* result)
     return true;
 }
 
-bool _BusAttachmentHost::unregisterBusObject(NPIdentifier name)
+bool _BusAttachmentHost::unregisterBusObject(const qcc::String& name)
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
 
-    std::map<NPIdentifier, BusObjectListener*>::iterator it = busObjectListeners.find(name);
+    std::map<qcc::String, BusObjectListener*>::iterator it = busObjectListeners.find(name);
     if (it != busObjectListeners.end()) {
         BusObjectListener* busObjectListener = it->second;
         busAttachment->UnregisterBusObject(*busObjectListener->env->busObject);
@@ -1348,8 +1347,8 @@ bool _BusAttachmentHost::enumerateBusObjects(NPIdentifier** value, uint32_t* cou
     *count = busObjectListeners.size();
     *value = reinterpret_cast<NPIdentifier*>(NPN_MemAlloc(*count * sizeof(NPIdentifier)));
     NPIdentifier* v = *value;
-    for (std::map<NPIdentifier, BusObjectListener*>::iterator it = busObjectListeners.begin(); it != busObjectListeners.end(); ++it) {
-        *v++ = it->first;
+    for (std::map<qcc::String, BusObjectListener*>::iterator it = busObjectListeners.begin(); it != busObjectListeners.end(); ++it) {
+        *v++ = NPN_GetStringIdentifier(it->first.c_str());
     }
     return true;
 }
@@ -1370,13 +1369,12 @@ bool _BusAttachmentHost::disconnect(const NPVariant* args, uint32_t argCount, NP
     return true;
 }
 
-bool _BusAttachmentHost::registerBusObject(NPIdentifier name, const NPVariant* value)
+bool _BusAttachmentHost::registerBusObject(const qcc::String& name, const NPVariant* value)
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
 
     BusObjectNative* busObjectNative = 0;
     BusObjectListener* busObjectListener = 0;
-    NPUTF8* path = NPN_UTF8FromIdentifier(name);
     QStatus status = ER_OK;
 
     bool typeError = false;
@@ -1387,7 +1385,7 @@ bool _BusAttachmentHost::registerBusObject(NPIdentifier name, const NPVariant* v
         goto exit;
     }
 
-    busObjectListener = new BusObjectListener(plugin, busAttachment, path, busObjectNative);
+    busObjectListener = new BusObjectListener(plugin, busAttachment, name.c_str(), busObjectNative);
     busObjectNative = 0; /* busObject now owns busObjectNative */
     status = busObjectListener->AddInterfaceAndMethodHandlers();
     if (ER_OK != status) {
@@ -1395,13 +1393,12 @@ bool _BusAttachmentHost::registerBusObject(NPIdentifier name, const NPVariant* v
     }
     status = busAttachment->RegisterBusObject(*busObjectListener->env->busObject);
     if (ER_OK == status) {
-        std::pair<NPIdentifier, BusObjectListener*> element(name, busObjectListener);
+        std::pair<qcc::String, BusObjectListener*> element(name, busObjectListener);
         busObjectListeners.insert(element);
         busObjectListener = 0; /* busObjectListeners now owns busObjectListener */
     }
 
 exit:
-    NPN_MemFree(path);
     delete busObjectListener;
     delete busObjectNative;
     if ((ER_OK == status) && !typeError) {

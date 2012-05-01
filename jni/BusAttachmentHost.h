@@ -37,7 +37,7 @@ class _BusAttachmentHost : public ScriptableObject {
   public:
     _BusAttachmentHost(Plugin& plugin, const char* applicationName, bool allowRemoteMessages);
     virtual ~_BusAttachmentHost();
-    virtual bool HasProperty(NPIdentifier name);
+    virtual bool HasProperty(const qcc::String& name);
 
   private:
     BusAttachment busAttachment;
@@ -53,7 +53,7 @@ class _BusAttachmentHost : public ScriptableObject {
     std::list<BusListener*> busListeners;
     std::map<ajn::SessionPort, SessionPortListener*> sessionPortListeners;
     std::map<ajn::SessionId, SessionListener*> sessionListeners;
-    std::map<NPIdentifier, BusObjectListener*> busObjectListeners;
+    std::map<qcc::String, BusObjectListener*> busObjectListeners;
 
     bool getGlobalGUIDString(NPVariant* result);
     bool getInterfaces(NPVariant* result);
@@ -95,9 +95,9 @@ class _BusAttachmentHost : public ScriptableObject {
     bool unregisterSignalHandler(const NPVariant* args, uint32_t argCount, NPVariant* result);
 
     bool enumerateBusObjects(NPIdentifier** value, uint32_t* count);
-    bool getBusObject(NPIdentifier name, NPVariant* result);
-    bool registerBusObject(NPIdentifier name, const NPVariant* value);
-    bool unregisterBusObject(NPIdentifier name);
+    bool getBusObject(const qcc::String& name, NPVariant* result);
+    bool registerBusObject(const qcc::String& name, const NPVariant* value);
+    bool unregisterBusObject(const qcc::String& name);
 
     QStatus GetSignal(const qcc::String& signalName, const ajn::InterfaceDescription::Member*& signal);
     qcc::String MatchRule(const ajn::InterfaceDescription::Member* signal, const qcc::String& sourcePath);

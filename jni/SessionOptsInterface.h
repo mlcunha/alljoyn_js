@@ -21,12 +21,12 @@
 
 class _SessionOptsInterface : public ScriptableObject {
   public:
-    static std::map<NPIdentifier, int32_t>& Constants();
+    static std::map<qcc::String, int32_t>& Constants();
     _SessionOptsInterface(Plugin& plugin);
     virtual ~_SessionOptsInterface();
 
   private:
-    static std::map<NPIdentifier, int32_t> constants;
+    static std::map<qcc::String, int32_t> constants;
 };
 
 typedef qcc::ManagedObj<_SessionOptsInterface> SessionOptsInterface;

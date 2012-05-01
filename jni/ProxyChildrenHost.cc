@@ -37,24 +37,20 @@ _ProxyChildrenHost::~_ProxyChildrenHost()
     QCC_DbgTrace(("%s", __FUNCTION__));
 }
 
-bool _ProxyChildrenHost::HasProperty(NPIdentifier name)
+bool _ProxyChildrenHost::HasProperty(const qcc::String& name)
 {
     bool has = ScriptableObject::HasProperty(name);
-    if (!has && NPN_IdentifierIsString(name)) {
-        NPUTF8* relativeObjectPath = NPN_UTF8FromIdentifier(name);
-        has = proxyBusObject->GetChild(relativeObjectPath) != 0;
-        NPN_MemFree(relativeObjectPath);
+    if (!has) {
+        has = proxyBusObject->GetChild(name.c_str()) != 0;
     }
     return has;
 }
 
-bool _ProxyChildrenHost::getProxyBusObject(NPIdentifier name, NPVariant* result)
+bool _ProxyChildrenHost::getProxyBusObject(const qcc::String& name, NPVariant* result)
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
 
-    NPUTF8* relativeObjectPath = NPN_UTF8FromIdentifier(name);
-    ajn::ProxyBusObject* child = proxyBusObject->GetChild(relativeObjectPath);
-    NPN_MemFree(relativeObjectPath);
+    ajn::ProxyBusObject* child = proxyBusObject->GetChild(name.c_str());
     if (child) {
         qcc::String name = child->GetServiceName() + child->GetPath();
         if (child->GetSessionId()) {
@@ -62,12 +58,11 @@ bool _ProxyChildrenHost::getProxyBusObject(NPIdentifier name, NPVariant* result)
             snprintf(sessionId, 32, ":sessionId=%u", child->GetSessionId());
             name += sessionId;
         }
-        NPIdentifier id = NPN_GetStringIdentifier(name.c_str());
-        if (proxyBusObjects.find(id) == proxyBusObjects.end()) {
-            std::pair<NPIdentifier, ProxyBusObjectHost> element(id, ProxyBusObjectHost(plugin, busAttachment, child));
+        if (proxyBusObjects.find(name) == proxyBusObjects.end()) {
+            std::pair<qcc::String, ProxyBusObjectHost> element(name, ProxyBusObjectHost(plugin, busAttachment, child));
             proxyBusObjects.insert(element);
         }
-        std::map<NPIdentifier, ProxyBusObjectHost>::iterator it = proxyBusObjects.find(id);
+        std::map<qcc::String, ProxyBusObjectHost>::iterator it = proxyBusObjects.find(name);
         ToHostObject<ProxyBusObjectHost>(plugin, it->second, *result);
     } else {
         VOID_TO_NPVARIANT(*result);

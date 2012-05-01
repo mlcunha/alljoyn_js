@@ -37,10 +37,10 @@ _ProxyInterfaceHost::~_ProxyInterfaceHost()
     QCC_DbgTrace(("%s", __FUNCTION__));
 }
 
-bool _ProxyInterfaceHost::HasProperty(NPIdentifier name)
+bool _ProxyInterfaceHost::HasProperty(const qcc::String& name)
 {
     bool has = ScriptableObject::HasProperty(name);
-    if (!has && NPN_IdentifierIsString(name)) {
+    if (!has) {
         /*
          * Firefox in particular likes to lookup a lot of __name__ properties.  This is a problem
          * when enumerating this object.  Firefox looks for an __iterator__ property of this.  If it
@@ -55,35 +55,31 @@ bool _ProxyInterfaceHost::HasProperty(NPIdentifier name)
          * The above at least allows an application to explicitly set the interface description if it's
          * talking to an interface with a name matching one of the __name__ properties.
          */
-        NPUTF8* methodName = NPN_UTF8FromIdentifier(name);
         const ajn::InterfaceDescription* iface = busAttachment->GetInterface(interfaceName.c_str());
         if (iface) {
-            has = iface->GetMember(methodName);
+            has = iface->GetMember(name.c_str());
         } else {
             qcc::String underscores("__");
-            qcc::String nameStr(methodName);
-            if ((nameStr.size() > 4) &&
-                !nameStr.compare(0, 2, underscores) && !nameStr.compare(nameStr.size() - 2, 2, underscores)) {
+            if ((name.size() > 4) &&
+                !name.compare(0, 2, underscores) && !name.compare(name.size() - 2, 2, underscores)) {
                 has = false;
             } else {
-                has = ajn::IsLegalMemberName(methodName);
+                has = ajn::IsLegalMemberName(name.c_str());
             }
         }
-        NPN_MemFree(methodName);
     }
     return has;
 }
 
-bool _ProxyInterfaceHost::getProxyMethod(NPIdentifier name, NPVariant* result)
+bool _ProxyInterfaceHost::getProxyMethod(const qcc::String& name, NPVariant* result)
 {
     if (proxyMethods.find(name) == proxyMethods.end()) {
         const char* cinterfaceName = interfaceName.c_str();
-        NPUTF8* methodName = NPN_UTF8FromIdentifier(name);
-        std::pair<NPIdentifier, ProxyMethodHost> element(name, ProxyMethodHost(plugin, busAttachment, proxyBusObject, cinterfaceName, methodName));
-        NPN_MemFree(methodName);
+        const char* cname = name.c_str();
+        std::pair<qcc::String, ProxyMethodHost> element(name, ProxyMethodHost(plugin, busAttachment, proxyBusObject, cinterfaceName, cname));
         proxyMethods.insert(element);
     }
-    std::map<NPIdentifier, ProxyMethodHost>::iterator it = proxyMethods.find(name);
+    std::map<qcc::String, ProxyMethodHost>::iterator it = proxyMethods.find(name);
     ToHostObject<ProxyMethodHost>(plugin, it->second, *result);
     return true;
 }

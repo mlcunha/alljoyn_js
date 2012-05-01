@@ -30,12 +30,12 @@
 
 class _BusNamespace : public ScriptableObject {
   public:
-    static std::map<NPIdentifier, int32_t>& Constants();
+    static std::map<qcc::String, int32_t>& Constants();
     _BusNamespace(Plugin& plugin);
     virtual ~_BusNamespace();
 
   private:
-    static std::map<NPIdentifier, int32_t> constants;
+    static std::map<qcc::String, int32_t> constants;
 
     BusAttachmentInterface busAttachmentInterface;
     BusErrorInterface busErrorInterface;

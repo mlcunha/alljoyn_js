@@ -26,14 +26,14 @@ class _ProxyChildrenHost : public ScriptableObject {
   public:
     _ProxyChildrenHost(Plugin& plugin, BusAttachment& busAttachment, ProxyBusObject& proxyBusObject);
     virtual ~_ProxyChildrenHost();
-    virtual bool HasProperty(NPIdentifier name);
+    virtual bool HasProperty(const qcc::String& name);
 
   private:
     BusAttachment busAttachment;
     ProxyBusObject proxyBusObject;
-    std::map<NPIdentifier, ProxyBusObjectHost> proxyBusObjects;
+    std::map<qcc::String, ProxyBusObjectHost> proxyBusObjects;
 
-    bool getProxyBusObject(NPIdentifier name, NPVariant* result);
+    bool getProxyBusObject(const qcc::String& name, NPVariant* result);
     bool enumerateProxyBusObjects(NPIdentifier** value, uint32_t* count);
 };
 

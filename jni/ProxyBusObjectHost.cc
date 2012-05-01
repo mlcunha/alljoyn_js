@@ -122,13 +122,11 @@ _ProxyBusObjectHost::~_ProxyBusObjectHost()
     delete impl;
 }
 
-bool _ProxyBusObjectHost::HasProperty(NPIdentifier name)
+bool _ProxyBusObjectHost::HasProperty(const qcc::String& name)
 {
     bool has = ScriptableObject::HasProperty(name);
-    if (!has && NPN_IdentifierIsString(name)) {
-        NPUTF8* utf8 = NPN_UTF8FromIdentifier(name);
-        has = ajn::IsLegalInterfaceName(utf8);
-        NPN_MemFree(utf8);
+    if (!has) {
+        has = ajn::IsLegalInterfaceName(name.c_str());
     }
     return has;
 }
@@ -252,15 +250,15 @@ exit:
     return !typeError;
 }
 
-bool _ProxyBusObjectHost::getProxyInterface(NPIdentifier name, NPVariant* result)
+bool _ProxyBusObjectHost::getProxyInterface(const qcc::String& name, NPVariant* result)
 {
     if (proxyInterfaces.find(name) == proxyInterfaces.end()) {
-        NPUTF8* interfaceName = NPN_UTF8FromIdentifier(name);
-        std::pair<NPIdentifier, ProxyInterfaceHost> element(name, ProxyInterfaceHost(plugin, busAttachment, proxyBusObject, interfaceName));
+        const char* interfaceName = name.c_str();
+        std::pair<qcc::String, ProxyInterfaceHost> element(name, ProxyInterfaceHost(plugin, busAttachment, proxyBusObject,
+                                                                                    interfaceName));
         proxyInterfaces.insert(element);
-        NPN_MemFree(interfaceName);
     }
-    std::map<NPIdentifier, ProxyInterfaceHost>::iterator it = proxyInterfaces.find(name);
+    std::map<qcc::String, ProxyInterfaceHost>::iterator it = proxyInterfaces.find(name);
     ToHostObject<ProxyInterfaceHost>(plugin, it->second, *result);
     return true;
 }

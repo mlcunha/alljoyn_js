@@ -36,10 +36,10 @@ _ProxyBusObjectsHost::~_ProxyBusObjectsHost()
     QCC_DbgTrace(("%s", __FUNCTION__));
 }
 
-bool _ProxyBusObjectsHost::HasProperty(NPIdentifier name)
+bool _ProxyBusObjectsHost::HasProperty(const qcc::String& name)
 {
     bool has = ScriptableObject::HasProperty(name);
-    if (!has && NPN_IdentifierIsString(name)) {
+    if (!has) {
         qcc::String serviceName, path;
         std::map<qcc::String, qcc::String> argMap;
         ParseName(name, serviceName, path, argMap);
@@ -48,7 +48,7 @@ bool _ProxyBusObjectsHost::HasProperty(NPIdentifier name)
     return has;
 }
 
-bool _ProxyBusObjectsHost::getProxyBusObject(NPIdentifier name, NPVariant* result)
+bool _ProxyBusObjectsHost::getProxyBusObject(const qcc::String& name, NPVariant* result)
 {
     if (proxyBusObjects.find(name) == proxyBusObjects.end()) {
         qcc::String serviceName, path;
@@ -57,23 +57,20 @@ bool _ProxyBusObjectsHost::getProxyBusObject(NPIdentifier name, NPVariant* resul
         const char* cserviceName = serviceName.c_str();
         const char* cpath = path.c_str();
         ajn::SessionId sessionId = strtoul(argMap["sessionId"].c_str(), 0, 0);
-        std::pair<NPIdentifier, ProxyBusObjectHost> element(name, ProxyBusObjectHost(plugin, busAttachment, cserviceName, cpath, sessionId));
+        std::pair<qcc::String, ProxyBusObjectHost> element(name, ProxyBusObjectHost(plugin, busAttachment, cserviceName, cpath, sessionId));
         proxyBusObjects.insert(element);
     }
-    std::map<NPIdentifier, ProxyBusObjectHost>::iterator it = proxyBusObjects.find(name);
+    std::map<qcc::String, ProxyBusObjectHost>::iterator it = proxyBusObjects.find(name);
     ToHostObject<ProxyBusObjectHost>(plugin, it->second, *result);
     return true;
 }
 
-void _ProxyBusObjectsHost::ParseName(NPIdentifier id, qcc::String& serviceName, qcc::String& path, std::map<qcc::String, qcc::String>& argMap)
+void _ProxyBusObjectsHost::ParseName(const qcc::String& name, qcc::String& serviceName, qcc::String& path, std::map<qcc::String, qcc::String>& argMap)
 {
-    NPUTF8* utf8 = NPN_UTF8FromIdentifier(id);
-    qcc::String name(utf8);
     size_t slash = name.find_first_of('/');
     size_t colon = name.find_last_of(':');
     serviceName = name.substr(0, slash);
     path = name.substr(slash, colon - slash);
     qcc::String args = name.substr(colon);
     ajn::Transport::ParseArguments("", args.c_str(), argMap); /* Ignore any errors since args are optional */
-    NPN_MemFree(utf8);
 }

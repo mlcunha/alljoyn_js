@@ -128,8 +128,18 @@ template <class T>
 bool HostObject<T>::HasMethod(NPObject* npobj, NPIdentifier name)
 {
     QCC_DbgTrace(("%s(npobj=%p)", __FUNCTION__, npobj));
+    if (!NPN_IdentifierIsString(name)) {
+        QCC_LogError(ER_FAIL, ("HasMethod called with int identifier"));
+        return false;
+    }
+    NPUTF8* nm = NPN_UTF8FromIdentifier(name);
+    if (!nm) {
+        QCC_LogError(ER_OUT_OF_MEMORY, ("NPN_UTF8FromIdentifier failed"));
+        return false;
+    }
     HostObject<T>* obj = static_cast<HostObject<T>*>(npobj);
-    bool ret = obj->impl->HasMethod(name);
+    bool ret = obj->impl->HasMethod(nm);
+    NPN_MemFree(nm);
     obj->plugin->CheckError(obj);
     return ret;
 }
@@ -138,8 +148,18 @@ template <class T>
 bool HostObject<T>::Invoke(NPObject* npobj, NPIdentifier name, const NPVariant* args, uint32_t argCount, NPVariant* result)
 {
     QCC_DbgTrace(("%s(npobj=%p)", __FUNCTION__, npobj));
+    if (!NPN_IdentifierIsString(name)) {
+        QCC_LogError(ER_FAIL, ("HasMethod called with int identifier"));
+        return false;
+    }
+    NPUTF8* nm = NPN_UTF8FromIdentifier(name);
+    if (!nm) {
+        QCC_LogError(ER_OUT_OF_MEMORY, ("NPN_UTF8FromIdentifier failed"));
+        return false;
+    }
     HostObject<T>* obj = static_cast<HostObject<T>*>(npobj);
-    bool ret = obj->impl->Invoke(name, args, argCount, result);
+    bool ret = obj->impl->Invoke(nm, args, argCount, result);
+    NPN_MemFree(nm);
     obj->plugin->CheckError(obj);
     return ret;
 }
@@ -158,8 +178,18 @@ template <class T>
 bool HostObject<T>::HasProperty(NPObject* npobj, NPIdentifier name)
 {
     QCC_DbgTrace(("%s(npobj=%p)", __FUNCTION__, npobj));
+    if (!NPN_IdentifierIsString(name)) {
+        QCC_LogError(ER_FAIL, ("HasMethod called with int identifier"));
+        return false;
+    }
+    NPUTF8* nm = NPN_UTF8FromIdentifier(name);
+    if (!nm) {
+        QCC_LogError(ER_OUT_OF_MEMORY, ("NPN_UTF8FromIdentifier failed"));
+        return false;
+    }
     HostObject<T>* obj = static_cast<HostObject<T>*>(npobj);
-    bool ret = obj->impl->HasProperty(name);
+    bool ret = obj->impl->HasProperty(nm);
+    NPN_MemFree(nm);
     obj->plugin->CheckError(obj);
     return ret;
 }
@@ -168,8 +198,18 @@ template <class T>
 bool HostObject<T>::GetProperty(NPObject* npobj, NPIdentifier name, NPVariant* result)
 {
     QCC_DbgTrace(("%s(npobj=%p)", __FUNCTION__, npobj));
+    if (!NPN_IdentifierIsString(name)) {
+        QCC_LogError(ER_FAIL, ("HasMethod called with int identifier"));
+        return false;
+    }
+    NPUTF8* nm = NPN_UTF8FromIdentifier(name);
+    if (!nm) {
+        QCC_LogError(ER_OUT_OF_MEMORY, ("NPN_UTF8FromIdentifier failed"));
+        return false;
+    }
     HostObject<T>* obj = static_cast<HostObject<T>*>(npobj);
-    bool ret = obj->impl->GetProperty(name, result);
+    bool ret = obj->impl->GetProperty(nm, result);
+    NPN_MemFree(nm);
     obj->plugin->CheckError(obj);
     return ret;
 }
@@ -178,8 +218,18 @@ template <class T>
 bool HostObject<T>::SetProperty(NPObject* npobj, NPIdentifier name, const NPVariant* value)
 {
     QCC_DbgTrace(("%s(npobj=%p)", __FUNCTION__, npobj));
+    if (!NPN_IdentifierIsString(name)) {
+        QCC_LogError(ER_FAIL, ("HasMethod called with int identifier"));
+        return false;
+    }
+    NPUTF8* nm = NPN_UTF8FromIdentifier(name);
+    if (!nm) {
+        QCC_LogError(ER_OUT_OF_MEMORY, ("NPN_UTF8FromIdentifier failed"));
+        return false;
+    }
     HostObject<T>* obj = static_cast<HostObject<T>*>(npobj);
-    bool ret = obj->impl->SetProperty(name, value);
+    bool ret = obj->impl->SetProperty(nm, value);
+    NPN_MemFree(nm);
     obj->plugin->CheckError(obj);
     return ret;
 }
@@ -188,8 +238,18 @@ template <class T>
 bool HostObject<T>::RemoveProperty(NPObject* npobj, NPIdentifier name)
 {
     QCC_DbgTrace(("%s(npobj=%p)", __FUNCTION__, npobj));
+    if (!NPN_IdentifierIsString(name)) {
+        QCC_LogError(ER_FAIL, ("HasMethod called with int identifier"));
+        return false;
+    }
+    NPUTF8* nm = NPN_UTF8FromIdentifier(name);
+    if (!nm) {
+        QCC_LogError(ER_OUT_OF_MEMORY, ("NPN_UTF8FromIdentifier failed"));
+        return false;
+    }
     HostObject<T>* obj = static_cast<HostObject<T>*>(npobj);
-    bool ret = obj->impl->RemoveProperty(name);
+    bool ret = obj->impl->RemoveProperty(nm);
+    NPN_MemFree(nm);
     obj->plugin->CheckError(obj);
     return ret;
 }
