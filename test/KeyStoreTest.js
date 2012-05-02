@@ -134,7 +134,7 @@ AsyncTestCase("KeyStoreTest", {
                     
                     var onPing = callbacks.add(function(context, outStr) {
                             var guid = otherBus.getPeerGUID(bus.uniqueName);
-                            assertEquals(100, otherBus.getKeyExpiration(guid));
+                            assertTrue((100 - otherBus.getKeyExpiration(guid)) < 5);
                         });
                     var onErr = callbacks.addErrback(onError);
                     otherBus.proxy[bus.uniqueName + "/test"]["test.SecureInterface"].Ping(onPing, onErr, "pong");
