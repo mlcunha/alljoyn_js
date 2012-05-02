@@ -139,7 +139,6 @@ AsyncTestCase("BusAttachmentTest", {
             queue.call(function(callbacks) {
                     var onNameOwnerChanged = callbacks.add(function(context, name, oldOwner, newOwner) {
                             assertEquals("NameOwnerChanged", context.memberName);
-                            assertEquals(otherBus.uniqueName, newOwner);
                         });
                     assertEquals(0, bus.connect());
                     assertEquals(0, bus.registerSignalHandler(onNameOwnerChanged, "org.freedesktop.DBus.NameOwnerChanged"));
