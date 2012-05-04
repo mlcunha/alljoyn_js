@@ -94,7 +94,6 @@ if 'WIDLPROC' in env:
     Widl('docs/alljoyn.widl.in', 'jni/Status.xml', 'docs/alljoyn.widl')
     # The target directory 'docs/tmp' is never built this will cause the command to run every time WIDLPROC=foo is set
     Command('docs/tmp', 'docs/alljoyn.widl', [
-            Mkdir('docs/html'),
             widlproc_cmd('docs/alljoyn.widl', 'docs/alljoyn.wxml'),
             env['XSLTPROC'] +
             ' --stringparam date "' + time.strftime('%d %B %Y') + '"' +
