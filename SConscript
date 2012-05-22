@@ -39,6 +39,11 @@ sys.path.append('../build_core/tools/scons')
 from jsstatus import JavaScriptStatus
 from widl import Widl
 
+if(not(env.has_key('BULLSEYE_BIN'))):
+    print('BULLSEYE_BIN not specified')
+else:
+    env.PrependENVPath('PATH', env.get('BULLSEYE_BIN'))
+
 # add support for NPAPI plugins
 env.MergeFlags(['-D__STDC_LIMIT_MACROS'])
 env.MergeFlags(['-I$GECKO_BASE/include'])
