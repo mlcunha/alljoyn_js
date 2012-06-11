@@ -46,8 +46,6 @@ static const unsigned long __nan[2] = { 0xffffffff, 0x7fffffff };
     (_v).value.stringValue = str;                                             \
     NP_END_MACRO
 
-using std::fpclassify;
-
 static bool IsPrimitive(const NPVariant& value)
 {
     return (value.type != NPVariantType_Object);
@@ -349,7 +347,7 @@ bool NewObject(Plugin& plugin, NPVariant& variant)
 {
     NPObject* window = 0;
     if (NPERR_NO_ERROR == NPN_GetValue(plugin->npp, NPNVWindowNPObject, &window)) {
-        NPString script = { "new Object();", strlen("new Object();") };
+        NPString script = { "new Object();", (uint32_t)strlen("new Object();") };
         bool evaluated = NPN_Evaluate(plugin->npp, window, &script, &variant);
         NPN_ReleaseObject(window);
         return (evaluated && NPVARIANT_IS_OBJECT(variant));
@@ -362,7 +360,7 @@ bool NewArray(Plugin& plugin, NPVariant& variant)
 {
     NPObject* window = 0;
     if (NPERR_NO_ERROR == NPN_GetValue(plugin->npp, NPNVWindowNPObject, &window)) {
-        NPString script = { "new Array();", strlen("new Array();") };
+        NPString script = { "new Array();", (uint32_t)strlen("new Array();") };
         bool evaluated = NPN_Evaluate(plugin->npp, window, &script, &variant);
         NPN_ReleaseObject(window);
         return (evaluated && NPVARIANT_IS_OBJECT(variant));
