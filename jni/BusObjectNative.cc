@@ -70,7 +70,7 @@ QStatus BusObjectNative::get(const ajn::InterfaceDescription* iface, const ajn::
         goto exit;
     }
 
-    STRINGN_TO_NPVARIANT(prop->name.c_str(), prop->name.size(), nparg);
+    STRINGN_TO_NPVARIANT(prop->name.c_str(), (uint32_t)prop->name.size(), nparg);
     if (!NPN_Invoke(plugin->npp, NPVARIANT_TO_OBJECT(interface), NPN_GetStringIdentifier("__lookupGetter__"), &nparg, 1, &getter) ||
         !NPVARIANT_IS_OBJECT(getter)) {
         status = ER_FAIL;
@@ -110,7 +110,7 @@ QStatus BusObjectNative::set(const ajn::InterfaceDescription* iface, const ajn::
         goto exit;
     }
 
-    STRINGN_TO_NPVARIANT(prop->name.c_str(), prop->name.size(), nparg);
+    STRINGN_TO_NPVARIANT(prop->name.c_str(), (uint32_t)prop->name.size(), nparg);
     if (!NPN_Invoke(plugin->npp, NPVARIANT_TO_OBJECT(interface), NPN_GetStringIdentifier("__lookupSetter__"), &nparg, 1, &setter) ||
         !NPVARIANT_IS_OBJECT(setter)) {
         status = ER_FAIL;

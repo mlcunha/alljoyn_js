@@ -38,6 +38,16 @@ static const unsigned long __nan[2] = { 0xffffffff, 0x7fffffff };
 #define NAN (*(const double*)__nan);
 #endif
 
+#undef STRINGZ_TO_NPVARIANT
+#define STRINGZ_TO_NPVARIANT(_val, _v)                                        \
+    NP_BEGIN_MACRO                                                                \
+        (_v).type = NPVariantType_String;                                         \
+    NPString str = { _val, (uint32_t)strlen(_val) };                          \
+    (_v).value.stringValue = str;                                             \
+    NP_END_MACRO
+
+using std::fpclassify;
+
 static bool IsPrimitive(const NPVariant& value)
 {
     return (value.type != NPVariantType_Object);
@@ -204,7 +214,7 @@ static qcc::String NumberToString(Plugin& plugin, double value)
     if (NPERR_NO_ERROR == NPN_GetValue(plugin->npp, NPNVWindowNPObject, &window)) {
         char numberToString[50];
         snprintf(numberToString, 50, "new Number(%.16e).toString();", value);
-        NPString script = { numberToString, strlen(numberToString) };
+        NPString script = { numberToString, (uint32_t)strlen(numberToString) };
         NPVariant variant = NPVARIANT_VOID;
         if (NPN_Evaluate(plugin->npp, window, &script, &variant) &&
             NPVARIANT_IS_STRING(variant) && NPVARIANT_TO_STRING(variant).UTF8Length) {
