@@ -49,7 +49,7 @@ QStatus _Plugin::Initialize()
     NPObject* pluginElement = 0;
     NPVariant variant = NPVARIANT_VOID;
     const char* strictEquals = "(function () { return function(a, b) { return a === b; } })();";
-    NPString script = { strictEquals, strlen(strictEquals) };
+    NPString script = { strictEquals, (uint32_t)strlen(strictEquals) };
     NPError ret;
 #if defined(QCC_OS_ANDROID)
     jint jret;

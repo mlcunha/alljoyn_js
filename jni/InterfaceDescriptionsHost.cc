@@ -23,6 +23,14 @@
 
 #define QCC_MODULE "ALLJOYN_JS"
 
+#undef STRINGZ_TO_NPVARIANT
+#define STRINGZ_TO_NPVARIANT(_val, _v)                                        \
+    NP_BEGIN_MACRO                                                                \
+        (_v).type = NPVariantType_String;                                         \
+    NPString str = { _val, (uint32_t)strlen(_val) };                          \
+    (_v).value.stringValue = str;                                             \
+    NP_END_MACRO
+
 class InterfaceDescription {
   public:
     InterfaceDescriptionNative* interfaceDescriptionNative;
