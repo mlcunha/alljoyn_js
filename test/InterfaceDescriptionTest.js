@@ -58,10 +58,10 @@ AsyncTestCase("InterfaceDescriptionTest", {
                 '      <annotation name="org.freedesktop.DBus.Method.NoReply" value="true"/>\n' +
                 '    </method>\n' +
                 '    <signal name="signal1">\n' +
-                '      <arg name="in" type="s" direction="in"/>\n' +
+                '      <arg name="in" type="s" direction="out"/>\n' +
                 '    </signal>\n' +
                 '    <signal name="signal2">\n' +
-                '      <arg type="s" direction="in"/>\n' +
+                '      <arg type="s" direction="out"/>\n' +
                 '    </signal>\n' +
                 '    <signal name="signal3">\n' +
                 '    </signal>\n' +
@@ -141,7 +141,7 @@ AsyncTestCase("InterfaceDescriptionTest", {
                 '      <annotation name="org.freedesktop.DBus.Method.NoReply" value="true"/>\n' +
                 '    </method>\n' +
                 '    <signal name="signal1">\n' +
-                '      <arg name="in" type="s" direction="in"/>\n' +
+                '      <arg name="in" type="s" direction="out"/>\n' +
                 '      <annotation name="org.freedesktop.DBus.Deprecated" value="true"/>\n' +
                 '    </signal>\n' +
                 '    <property name="prop1" type="s" access="readwrite"/>\n' +
