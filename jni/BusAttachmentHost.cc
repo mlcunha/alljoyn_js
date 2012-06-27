@@ -1994,14 +1994,6 @@ bool _BusAttachmentHost::unbindSessionPort(const NPVariant* args, uint32_t argCo
     QCC_DbgTrace(("sessionPort=%u", sessionPort));
 
     status = busAttachment->UnbindSessionPort(sessionPort);
-    if (ER_OK == status) {
-        std::map<ajn::SessionPort, SessionPortListener*>::iterator it = sessionPortListeners.find(sessionPort);
-        if (it != sessionPortListeners.end()) {
-            SessionPortListener* listener = it->second;
-            sessionPortListeners.erase(it);
-            delete listener;
-        }
-    }
 
 exit:
     ToUnsignedShort(plugin, status, *result);

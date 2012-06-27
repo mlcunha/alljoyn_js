@@ -87,12 +87,12 @@ AsyncTestCase("SessionTest", {
                     var onJoined = callbacks.add(function(port, id, joiner) {
                             /* There is a joiner, so no need to be bound anymore. */
                             assertEquals(0, otherBus.unbindSessionPort(port));
-                            assertEquals(0, otherBus.setSessionListener(id, { onLost: onLost }));
                         });
                     var onLost = callbacks.add(function(id) {
                         });
                     var sessionOpts = { onAccept: onAccept,
-                                        onJoined: onJoined };
+                                        onJoined: onJoined,
+                                        onLost: onLost };
                     assertEquals(0, otherBus.bindSessionPort(sessionOpts));
 
                     assertEquals(0, bus.connect());
