@@ -34,6 +34,7 @@ class SignalReceiver;
 
 class _BusAttachmentHost : public ScriptableObject {
     friend class JoinSessionAsyncCB;
+    friend class SessionPortListener;
   public:
     _BusAttachmentHost(Plugin& plugin, const char* applicationName, bool allowRemoteMessages);
     virtual ~_BusAttachmentHost();
