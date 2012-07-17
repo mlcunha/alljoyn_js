@@ -447,6 +447,7 @@ bool _InterfaceDescriptionsHost::getInterfaceDescription(const qcc::String& name
                             goto exit;
                         }
 
+#if 0 // TODO
                         NPVariant annotation;
                         BOOLEAN_TO_NPVARIANT(true, annotation);
                         if (members[i]->annotation & ajn::MEMBER_ANNOTATE_DEPRECATED) {
@@ -463,6 +464,7 @@ bool _InterfaceDescriptionsHost::getInterfaceDescription(const qcc::String& name
                                 goto exit;
                             }
                         }
+#endif
 
                         if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(methodArray), NPN_GetIntIdentifier(j++), &method)) {
                             status = ER_FAIL;
@@ -507,6 +509,7 @@ bool _InterfaceDescriptionsHost::getInterfaceDescription(const qcc::String& name
                             goto exit;
                         }
 
+#if 0 // TODO
                         NPVariant annotation;
                         BOOLEAN_TO_NPVARIANT(true, annotation);
                         if (members[i]->annotation & ajn::MEMBER_ANNOTATE_DEPRECATED) {
@@ -516,6 +519,7 @@ bool _InterfaceDescriptionsHost::getInterfaceDescription(const qcc::String& name
                                 goto exit;
                             }
                         }
+#endif
 
                         if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(signalArray), NPN_GetIntIdentifier(j++), &signal)) {
                             status = ER_FAIL;
