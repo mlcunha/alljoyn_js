@@ -107,7 +107,7 @@ int32_t NPP_WriteReady(NPP npp, NPStream* stream)
     if (!npp) {
         return NPERR_INVALID_INSTANCE_ERROR;
     }
-#if defined(QCC_OS_WINDOWS)
+#if defined(QCC_OS_GROUP_WINDOWS)
     return NP_MAXREADY;
 #else
     /*
@@ -143,7 +143,7 @@ int32_t NPP_Write(NPP npp, NPStream* stream, int32_t offset, int32_t len, void* 
     if (!npp) {
         return NPERR_INVALID_INSTANCE_ERROR;
     }
-#if defined(QCC_OS_WINDOWS)
+#if defined(QCC_OS_GROUP_WINDOWS)
     return NP_MAXREADY;
 #else
     /*

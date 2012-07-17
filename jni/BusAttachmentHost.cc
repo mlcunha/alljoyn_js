@@ -1177,7 +1177,7 @@ bool _BusAttachmentHost::connect(const NPVariant* args, uint32_t argCount, NPVar
             goto exit;
         }
     } else {
-#if defined(QCC_OS_WINDOWS)
+#if defined(QCC_OS_GROUP_WINDOWS)
         connectSpec = "tcp:addr=127.0.0.1,port=9956";
 #else
         connectSpec = "unix:abstract=alljoyn";

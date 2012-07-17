@@ -27,7 +27,7 @@ NPNetscapeFuncs* npn;
 #if defined(QCC_OS_ANDROID)
 JavaVM* gVM;
 #endif
-#if defined(QCC_OS_WINDOWS)
+#if defined(QCC_OS_GROUP_WINDOWS)
 HINSTANCE gHinstance;
 #endif
 
