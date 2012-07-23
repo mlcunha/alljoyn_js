@@ -90,7 +90,7 @@ NP_EXPORT(char*) NP_GetPluginVersion()
 {
     InitializeDebug();
     QCC_DbgPrintf(("%s", __FUNCTION__));
-    return const_cast<char*>("2.5.0");
+    return const_cast<char*>("2.5.1");
 }
 
 NP_EXPORT(char*) NP_GetMIMEDescription()
