@@ -45,6 +45,8 @@ _Plugin::_Plugin()
 
 QStatus _Plugin::Initialize()
 {
+    QCC_DbgTrace(("%s", __FUNCTION__));
+
     QStatus status = ER_OK;
     NPObject* pluginElement = 0;
     NPVariant variant = NPVARIANT_VOID;
@@ -183,7 +185,11 @@ bool _Plugin::StrictEquals(const NPVariant& a, const NPVariant& b) const
             if (NPN_Invoke(npp, pluginElement, NPN_GetStringIdentifier("strictEquals"), args, 2, &result) &&
                 NPVARIANT_IS_BOOLEAN(result)) {
                 equals = NPVARIANT_TO_BOOLEAN(result);
+            } else {
+                QCC_LogError(ER_FAIL, ("NPN_Invoke(strictEquals) failed"));
             }
+        } else {
+            QCC_LogError(ER_FAIL, ("NPN_GetValue()=%d", error));
         }
         NPN_ReleaseVariantValue(&result);
         if (pluginElement) {

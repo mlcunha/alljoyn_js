@@ -217,6 +217,8 @@ static qcc::String NumberToString(Plugin& plugin, double value)
         if (NPN_Evaluate(plugin->npp, window, &script, &variant) &&
             NPVARIANT_IS_STRING(variant) && NPVARIANT_TO_STRING(variant).UTF8Length) {
             s = qcc::String(NPVARIANT_TO_STRING(variant).UTF8Characters, NPVARIANT_TO_STRING(variant).UTF8Length);
+        } else {
+            QCC_LogError(ER_FAIL, ("new Number().toString() failed"));
         }
         NPN_ReleaseVariantValue(&variant);
         NPN_ReleaseObject(window);
@@ -350,7 +352,11 @@ bool NewObject(Plugin& plugin, NPVariant& variant)
         NPString script = { "new Object();", (uint32_t)strlen("new Object();") };
         bool evaluated = NPN_Evaluate(plugin->npp, window, &script, &variant);
         NPN_ReleaseObject(window);
-        return (evaluated && NPVARIANT_IS_OBJECT(variant));
+        bool success = (evaluated && NPVARIANT_IS_OBJECT(variant));
+        if (!success) {
+            QCC_LogError(ER_FAIL, ("new Object() failed"));
+        }
+        return success;
     }
     VOID_TO_NPVARIANT(variant);
     return false;
@@ -363,7 +369,11 @@ bool NewArray(Plugin& plugin, NPVariant& variant)
         NPString script = { "new Array();", (uint32_t)strlen("new Array();") };
         bool evaluated = NPN_Evaluate(plugin->npp, window, &script, &variant);
         NPN_ReleaseObject(window);
-        return (evaluated && NPVARIANT_IS_OBJECT(variant));
+        bool success = (evaluated && NPVARIANT_IS_OBJECT(variant));
+        if (!success) {
+            QCC_LogError(ER_FAIL, ("new Array() failed"));
+        }
+        return success;
     }
     VOID_TO_NPVARIANT(variant);
     return false;
