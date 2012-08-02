@@ -67,20 +67,22 @@ AsyncTestCase("ConstantsTest", {
         testSessionOpts: function(queue) {
             assertEquals(1, alljoyn.SessionOpts.TRAFFIC_MESSAGES);
             queue.call(function(callbacks) {
-                    assertEquals(0, bus.connect());
+                    otherBus = new alljoyn.BusAttachment();
+                    assertEquals(0, otherBus.connect());
                     var onAccept = callbacks.add(function(port, joiner, opts) {
                             assertEquals(1, opts.TRAFFIC_MESSAGES);            
                             return true;
                         });
                     var sessionOpts = { onAccept: onAccept };
-                    assertEquals(0, bus.bindSessionPort(sessionOpts));
+                    assertEquals(0, otherBus.bindSessionPort(sessionOpts));
 
+                    assertEquals(0, bus.connect());
                     var onJoinSession = callbacks.add(function(id, opts) {
                             assertEquals(1, opts.TRAFFIC_MESSAGES);            
                             assertEquals(0, bus.leaveSession(id));
                         });
                     var onErr = callbacks.addErrback(onError);
-                    assertEquals(0, bus.joinSession(onJoinSession, onErr, { host: bus.uniqueName,
+                    assertEquals(0, bus.joinSession(onJoinSession, onErr, { host: otherBus.uniqueName,
                                                                             port: sessionOpts.port }));
                 });
         },
