@@ -447,24 +447,22 @@ bool _InterfaceDescriptionsHost::getInterfaceDescription(const qcc::String& name
                             goto exit;
                         }
 
-#if 0 // TODO
                         NPVariant annotation;
                         BOOLEAN_TO_NPVARIANT(true, annotation);
-                        if (members[i]->annotation & ajn::MEMBER_ANNOTATE_DEPRECATED) {
+                        if (members[i]->annotations.find(ajn::org::freedesktop::DBus::AnnotateDeprecated) != members[i]->annotations.end()) {
                             if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(method), NPN_GetStringIdentifier("org.freedesktop.DBus.Deprecated"), &annotation)) {
                                 status = ER_FAIL;
                                 QCC_LogError(status, ("NPN_SetProperty failed"));
                                 goto exit;
                             }
                         }
-                        if (members[i]->annotation & ajn::MEMBER_ANNOTATE_NO_REPLY) {
+                        if (members[i]->annotations.find(ajn::org::freedesktop::DBus::AnnotateNoReply) != members[i]->annotations.end()) {
                             if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(method), NPN_GetStringIdentifier("org.freedesktop.DBus.Method.NoReply"), &annotation)) {
                                 status = ER_FAIL;
                                 QCC_LogError(status, ("NPN_SetProperty failed"));
                                 goto exit;
                             }
                         }
-#endif
 
                         if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(methodArray), NPN_GetIntIdentifier(j++), &method)) {
                             status = ER_FAIL;
@@ -509,17 +507,15 @@ bool _InterfaceDescriptionsHost::getInterfaceDescription(const qcc::String& name
                             goto exit;
                         }
 
-#if 0 // TODO
                         NPVariant annotation;
                         BOOLEAN_TO_NPVARIANT(true, annotation);
-                        if (members[i]->annotation & ajn::MEMBER_ANNOTATE_DEPRECATED) {
+                        if (members[i]->annotations.find(ajn::org::freedesktop::DBus::AnnotateDeprecated) != members[i]->annotations.end()) {
                             if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(signal), NPN_GetStringIdentifier("org.freedesktop.DBus.Deprecated"), &annotation)) {
                                 status = ER_FAIL;
                                 QCC_LogError(status, ("NPN_SetProperty failed"));
                                 goto exit;
                             }
                         }
-#endif
 
                         if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(signalArray), NPN_GetIntIdentifier(j++), &signal)) {
                             status = ER_FAIL;
