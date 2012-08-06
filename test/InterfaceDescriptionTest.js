@@ -57,6 +57,9 @@ AsyncTestCase("InterfaceDescriptionTest", {
                 '    <method name="method6">\n' +
                 '      <annotation name="org.freedesktop.DBus.Method.NoReply" value="true"/>\n' +
                 '    </method>\n' +
+                '    <method name="method7">\n' +
+                '      <annotation name="org.test" value="1"/>\n' +
+                '    </method>\n' +
                 '    <signal name="signal1">\n' +
                 '      <arg name="in" type="s" direction="out"/>\n' +
                 '    </signal>\n' +
@@ -68,9 +71,15 @@ AsyncTestCase("InterfaceDescriptionTest", {
                 '    <signal name="signal4">\n' +
                 '      <annotation name="org.freedesktop.DBus.Deprecated" value="true"/>\n' +
                 '    </signal>\n' +
+                '    <signal name="signal5">\n' +
+                '      <annotation name="org.test" value="1.2"/>\n' +
+                '    </signal>\n' +
                 '    <property name="prop1" type="s" access="readwrite"/>\n' +
                 '    <property name="prop2" type="s" access="read"/>\n' +
                 '    <property name="prop3" type="s" access="write"/>\n' +
+                '    <property name="prop4" type="s" access="readwrite">\n' +
+                '      <annotation name="org.test" value="test"/>\n' +
+                '    </property>\n' +
                 '  </interface>\n' +
                 '  <interface name="org.freedesktop.DBus.Properties">\n' +
                 '    <method name="Get">\n' +
@@ -102,18 +111,21 @@ AsyncTestCase("InterfaceDescriptionTest", {
                             { name: "method3", signature: "s", },
                             { name: "method4" },
                             { name: "method5", "org.freedesktop.DBus.Deprecated": true },
-                            { name: "method6", "org.freedesktop.DBus.Method.NoReply": true }
+                            { name: "method6", "org.freedesktop.DBus.Method.NoReply": true },
+                            { name: "method7", "org.test": 1 }
                         ],
                         signal: [
                             { name: "signal1", signature: "s", argNames: "in" },
                             { name: "signal2", signature: "s" },
                             { name: "signal3" },
-                            { name: "signal4", "org.freedesktop.DBus.Deprecated": true }
+                            { name: "signal4", "org.freedesktop.DBus.Deprecated": true },
+                            { name: "signal5", "org.test": 1.2 }
                         ],
                         property: [
                             { name: "prop1", signature: "s", access: "readwrite" },
                             { name: "prop2", signature: "s", access: "read" },
-                            { name: "prop3", signature: "s", access: "write" }
+                            { name: "prop3", signature: "s", access: "write" },
+                            { name: "prop4", signature: "s", access: "readwrite", "org.test": "test" }
                         ]
                     };
                     bus["/busObject"] = {
@@ -139,12 +151,16 @@ AsyncTestCase("InterfaceDescriptionTest", {
                 '      <arg name="out" type="s" direction="out"/>\n' +
                 '      <annotation name="org.freedesktop.DBus.Deprecated" value="true"/>\n' +
                 '      <annotation name="org.freedesktop.DBus.Method.NoReply" value="true"/>\n' +
+                '      <annotation name="org.test" value="1"/>\n' +
                 '    </method>\n' +
                 '    <signal name="signal1">\n' +
                 '      <arg name="in" type="s" direction="out"/>\n' +
                 '      <annotation name="org.freedesktop.DBus.Deprecated" value="true"/>\n' +
+                '      <annotation name="org.test" value="1.2"/>\n' +
                 '    </signal>\n' +
-                '    <property name="prop1" type="s" access="readwrite"/>\n' +
+                '    <property name="prop1" type="s" access="readwrite">\n' +
+                '      <annotation name="org.test" value="test"/>\n' +
+                '    </property>\n' +
                 '  </interface>\n' +
                 '  <interface name="org.freedesktop.DBus.Introspectable">\n' +
                 '    <method name="Introspect">\n' +
@@ -155,21 +171,26 @@ AsyncTestCase("InterfaceDescriptionTest", {
             assertEquals(0, bus.interfaces.parseXML(xml));
             var intf = bus.interfaces["test.Interface"];
 
+            console.log(intf);
+
             assertEquals("method1", intf.method[0].name);
             assertEquals("s", intf.method[0].signature);
             assertEquals("s", intf.method[0].returnSignature);
             assertEquals("in,out", intf.method[0].argNames);
-            assertTrue(intf.method[0]["org.freedesktop.DBus.Deprecated"]);
-            assertTrue(intf.method[0]["org.freedesktop.DBus.Method.NoReply"]);
+            assertEquals("true", intf.method[0]["org.freedesktop.DBus.Deprecated"]);
+            assertEquals("true", intf.method[0]["org.freedesktop.DBus.Method.NoReply"]);
+            assertEquals("1", intf.method[0]["org.test"]);
 
             assertEquals("signal1", intf.signal[0].name);
             assertEquals("s", intf.signal[0].signature);
             assertEquals("in", intf.signal[0].argNames);
-            assertTrue(intf.signal[0]["org.freedesktop.DBus.Deprecated"]);
+            assertEquals("true", intf.signal[0]["org.freedesktop.DBus.Deprecated"]);
+            assertEquals("1.2", intf.signal[0]["org.test"]);
 
             assertEquals("prop1", intf.property[0].name);
             assertEquals("s", intf.property[0].signature);
             assertEquals("readwrite", intf.property[0].access);
+            assertEquals("test", intf.property[0]["org.test"]);
         },
     });
 

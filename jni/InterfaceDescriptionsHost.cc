@@ -148,55 +148,53 @@ bool _InterfaceDescriptionsHost::createInterfaceDescription(const qcc::String& n
             NPVariant element = NPVARIANT_VOID;
             if (NPN_GetProperty(plugin->npp, NPVARIANT_TO_OBJECT(method), NPN_GetIntIdentifier(i), &element) &&
                 NPVARIANT_IS_OBJECT(element)) {
+                qcc::String name, signature, returnSignature, argNames;
+                ajn::InterfaceDescription::AnnotationsMap annotations;
 
-                NPVariant npname = NPVARIANT_VOID;
-                NPVariant npsignature = NPVARIANT_VOID;
-                NPVariant npreturnSignature = NPVARIANT_VOID;
-                NPVariant npargNames = NPVARIANT_VOID;
-                NPVariant deprecated = NPVARIANT_VOID;
-                NPVariant noReply = NPVARIANT_VOID;
-                NPN_GetProperty(plugin->npp, NPVARIANT_TO_OBJECT(element), NPN_GetStringIdentifier("name"), &npname);
-                NPN_GetProperty(plugin->npp, NPVARIANT_TO_OBJECT(element), NPN_GetStringIdentifier("signature"), &npsignature);
-                NPN_GetProperty(plugin->npp, NPVARIANT_TO_OBJECT(element), NPN_GetStringIdentifier("returnSignature"), &npreturnSignature);
-                NPN_GetProperty(plugin->npp, NPVARIANT_TO_OBJECT(element), NPN_GetStringIdentifier("argNames"), &npargNames);
-                NPN_GetProperty(plugin->npp, NPVARIANT_TO_OBJECT(element), NPN_GetStringIdentifier("org.freedesktop.DBus.Deprecated"), &deprecated);
-                NPN_GetProperty(plugin->npp, NPVARIANT_TO_OBJECT(element), NPN_GetStringIdentifier("org.freedesktop.DBus.Method.NoReply"), &noReply);
+                NPIdentifier* properties = 0;
+                uint32_t propertiesCount = 0;
+                if (NPN_Enumerate(plugin->npp, NPVARIANT_TO_OBJECT(element), &properties, &propertiesCount)) {
+                    for (uint32_t i = 0; (ER_OK == status) && (i < propertiesCount); ++i) {
+                        if (!NPN_IdentifierIsString(properties[i])) {
+                            continue;
+                        }
+                        NPUTF8* property = NPN_UTF8FromIdentifier(properties[i]);
+                        if (!property) {
+                            status = ER_OUT_OF_MEMORY;
+                            break;
+                        }
+                        NPVariant npvalue = NPVARIANT_VOID;
+                        if (!NPN_GetProperty(plugin->npp, NPVARIANT_TO_OBJECT(element), properties[i], &npvalue)) {
+                            continue;
+                        }
+                        qcc::String value = ToDOMString(plugin, npvalue, typeError);
+                        if (typeError) {
+                            continue;
+                        }
+                        NPN_ReleaseVariantValue(&npvalue);
 
-                qcc::String name;
-                if (NPVARIANT_IS_STRING(npname) && NPVARIANT_TO_STRING(npname).UTF8Length) {
-                    name = qcc::String(NPVARIANT_TO_STRING(npname).UTF8Characters, NPVARIANT_TO_STRING(npname).UTF8Length);
+                        if (!strcmp(property, "name")) {
+                            name = value;
+                        } else if (!strcmp(property, "signature")) {
+                            signature = value;
+                        } else if (!strcmp(property, "returnSignature")) {
+                            returnSignature = value;
+                        } else if (!strcmp(property, "argNames")) {
+                            argNames = value;
+                        } else {
+                            annotations[property] = value;
+                        }
+                        NPN_MemFree(property);
+                    }
+                    NPN_MemFree(properties);
                 }
-                qcc::String signature;
-                if (NPVARIANT_IS_STRING(npsignature) && NPVARIANT_TO_STRING(npsignature).UTF8Length) {
-                    signature = qcc::String(NPVARIANT_TO_STRING(npsignature).UTF8Characters, NPVARIANT_TO_STRING(npsignature).UTF8Length);
-                }
-                qcc::String returnSignature;
-                if (NPVARIANT_IS_STRING(npreturnSignature) && NPVARIANT_TO_STRING(npreturnSignature).UTF8Length) {
-                    returnSignature = qcc::String(NPVARIANT_TO_STRING(npreturnSignature).UTF8Characters, NPVARIANT_TO_STRING(npreturnSignature).UTF8Length);
-                }
-                qcc::String argNames;
-                if (NPVARIANT_IS_STRING(npargNames) && NPVARIANT_TO_STRING(npargNames).UTF8Length) {
-                    argNames = qcc::String(NPVARIANT_TO_STRING(npargNames).UTF8Characters, NPVARIANT_TO_STRING(npargNames).UTF8Length);
-                }
-                uint8_t annotationFlags = 0;
-                if (NPVARIANT_IS_BOOLEAN(deprecated) && NPVARIANT_TO_BOOLEAN(deprecated)) {
-                    annotationFlags |= ajn::MEMBER_ANNOTATE_DEPRECATED;
-                }
-                if (NPVARIANT_IS_BOOLEAN(noReply) && NPVARIANT_TO_BOOLEAN(noReply)) {
-                    annotationFlags |= ajn::MEMBER_ANNOTATE_NO_REPLY;
-                }
-                status = interface->AddMethod(name.empty() ? 0 : name.c_str(),
+
+                status = interface->AddMember(ajn::MESSAGE_METHOD_CALL,
+                                              name.empty() ? 0 : name.c_str(),
                                               signature.empty() ? 0 : signature.c_str(),
                                               returnSignature.empty() ? 0 : returnSignature.c_str(),
                                               argNames.empty() ? 0 : argNames.c_str(),
-                                              annotationFlags);
-
-                NPN_ReleaseVariantValue(&npname);
-                NPN_ReleaseVariantValue(&npsignature);
-                NPN_ReleaseVariantValue(&npreturnSignature);
-                NPN_ReleaseVariantValue(&npargNames);
-                NPN_ReleaseVariantValue(&deprecated);
-                NPN_ReleaseVariantValue(&noReply);
+                                              annotations);
             }
             NPN_ReleaseVariantValue(&element);
         }
@@ -220,41 +218,51 @@ bool _InterfaceDescriptionsHost::createInterfaceDescription(const qcc::String& n
             NPVariant element = NPVARIANT_VOID;
             if (NPN_GetProperty(plugin->npp, NPVARIANT_TO_OBJECT(signal), NPN_GetIntIdentifier(i), &element) &&
                 NPVARIANT_IS_OBJECT(element)) {
+                qcc::String name, signature, argNames;
+                ajn::InterfaceDescription::AnnotationsMap annotations;
 
-                NPVariant npname = NPVARIANT_VOID;
-                NPVariant npsignature = NPVARIANT_VOID;
-                NPVariant npargNames = NPVARIANT_VOID;
-                NPVariant deprecated = NPVARIANT_VOID;
-                NPN_GetProperty(plugin->npp, NPVARIANT_TO_OBJECT(element), NPN_GetStringIdentifier("name"), &npname);
-                NPN_GetProperty(plugin->npp, NPVARIANT_TO_OBJECT(element), NPN_GetStringIdentifier("signature"), &npsignature);
-                NPN_GetProperty(plugin->npp, NPVARIANT_TO_OBJECT(element), NPN_GetStringIdentifier("argNames"), &npargNames);
-                NPN_GetProperty(plugin->npp, NPVARIANT_TO_OBJECT(element), NPN_GetStringIdentifier("org.freedesktop.DBus.Deprecated"), &deprecated);
+                NPIdentifier* properties = 0;
+                uint32_t propertiesCount = 0;
+                if (NPN_Enumerate(plugin->npp, NPVARIANT_TO_OBJECT(element), &properties, &propertiesCount)) {
+                    for (uint32_t i = 0; (ER_OK == status) && (i < propertiesCount); ++i) {
+                        if (!NPN_IdentifierIsString(properties[i])) {
+                            continue;
+                        }
+                        NPUTF8* property = NPN_UTF8FromIdentifier(properties[i]);
+                        if (!property) {
+                            status = ER_OUT_OF_MEMORY;
+                            break;
+                        }
+                        NPVariant npvalue = NPVARIANT_VOID;
+                        if (!NPN_GetProperty(plugin->npp, NPVARIANT_TO_OBJECT(element), properties[i], &npvalue)) {
+                            continue;
+                        }
+                        qcc::String value = ToDOMString(plugin, npvalue, typeError);
+                        if (typeError) {
+                            continue;
+                        }
+                        NPN_ReleaseVariantValue(&npvalue);
 
-                qcc::String name;
-                if (NPVARIANT_IS_STRING(npname) && NPVARIANT_TO_STRING(npname).UTF8Length) {
-                    name = qcc::String(NPVARIANT_TO_STRING(npname).UTF8Characters, NPVARIANT_TO_STRING(npname).UTF8Length);
+                        if (!strcmp(property, "name")) {
+                            name = value;
+                        } else if (!strcmp(property, "signature")) {
+                            signature = value;
+                        } else if (!strcmp(property, "argNames")) {
+                            argNames = value;
+                        } else {
+                            annotations[property] = value;
+                        }
+                        NPN_MemFree(property);
+                    }
+                    NPN_MemFree(properties);
                 }
-                qcc::String signature;
-                if (NPVARIANT_IS_STRING(npsignature) && NPVARIANT_TO_STRING(npsignature).UTF8Length) {
-                    signature = qcc::String(NPVARIANT_TO_STRING(npsignature).UTF8Characters, NPVARIANT_TO_STRING(npsignature).UTF8Length);
-                }
-                qcc::String argNames;
-                if (NPVARIANT_IS_STRING(npargNames) && NPVARIANT_TO_STRING(npargNames).UTF8Length) {
-                    argNames = qcc::String(NPVARIANT_TO_STRING(npargNames).UTF8Characters, NPVARIANT_TO_STRING(npargNames).UTF8Length);
-                }
-                uint8_t annotationFlags = 0;
-                if (NPVARIANT_IS_BOOLEAN(deprecated) && NPVARIANT_TO_BOOLEAN(deprecated)) {
-                    annotationFlags |= ajn::MEMBER_ANNOTATE_DEPRECATED;
-                }
-                status = interface->AddSignal(name.empty() ? 0 : name.c_str(),
+
+                status = interface->AddMember(ajn::MESSAGE_SIGNAL,
+                                              name.empty() ? 0 : name.c_str(),
                                               signature.empty() ? 0 : signature.c_str(),
+                                              NULL,
                                               argNames.empty() ? 0 : argNames.c_str(),
-                                              annotationFlags);
-
-                NPN_ReleaseVariantValue(&npname);
-                NPN_ReleaseVariantValue(&npsignature);
-                NPN_ReleaseVariantValue(&npargNames);
-                NPN_ReleaseVariantValue(&deprecated);
+                                              annotations);
             }
             NPN_ReleaseVariantValue(&element);
         }
@@ -278,42 +286,59 @@ bool _InterfaceDescriptionsHost::createInterfaceDescription(const qcc::String& n
             NPVariant element = NPVARIANT_VOID;
             if (NPN_GetProperty(plugin->npp, NPVARIANT_TO_OBJECT(property), NPN_GetIntIdentifier(i), &element) &&
                 NPVARIANT_IS_OBJECT(element)) {
-
-                NPVariant npname = NPVARIANT_VOID;
-                NPVariant npsignature = NPVARIANT_VOID;
-                NPVariant access = NPVARIANT_VOID;
-                NPN_GetProperty(plugin->npp, NPVARIANT_TO_OBJECT(element), NPN_GetStringIdentifier("name"), &npname);
-                NPN_GetProperty(plugin->npp, NPVARIANT_TO_OBJECT(element), NPN_GetStringIdentifier("signature"), &npsignature);
-                NPN_GetProperty(plugin->npp, NPVARIANT_TO_OBJECT(element), NPN_GetStringIdentifier("access"), &access);
-
-                qcc::String name;
-                if (NPVARIANT_IS_STRING(npname) && NPVARIANT_TO_STRING(npname).UTF8Length) {
-                    name = qcc::String(NPVARIANT_TO_STRING(npname).UTF8Characters, NPVARIANT_TO_STRING(npname).UTF8Length);
-                }
-                qcc::String signature;
-                if (NPVARIANT_IS_STRING(npsignature) && NPVARIANT_TO_STRING(npsignature).UTF8Length) {
-                    signature = qcc::String(NPVARIANT_TO_STRING(npsignature).UTF8Characters, NPVARIANT_TO_STRING(npsignature).UTF8Length);
-                }
+                qcc::String name, signature;
                 uint8_t accessFlags = 0;
-                if (NPVARIANT_IS_STRING(access)) {
-                    if ((NPVARIANT_TO_STRING(access).UTF8Length == strlen("readwrite")) &&
-                        (!strncmp(NPVARIANT_TO_STRING(access).UTF8Characters, "readwrite", NPVARIANT_TO_STRING(access).UTF8Length))) {
-                        accessFlags = ajn::PROP_ACCESS_RW;
-                    } else if ((NPVARIANT_TO_STRING(access).UTF8Length == strlen("read")) &&
-                               (!strncmp(NPVARIANT_TO_STRING(access).UTF8Characters, "read", NPVARIANT_TO_STRING(access).UTF8Length))) {
-                        accessFlags = ajn::PROP_ACCESS_READ;
-                    } else if ((NPVARIANT_TO_STRING(access).UTF8Length == strlen("write")) &&
-                               (!strncmp(NPVARIANT_TO_STRING(access).UTF8Characters, "write", NPVARIANT_TO_STRING(access).UTF8Length))) {
-                        accessFlags = ajn::PROP_ACCESS_WRITE;
+                ajn::InterfaceDescription::AnnotationsMap annotations;
+
+                NPIdentifier* properties = 0;
+                uint32_t propertiesCount = 0;
+                if (NPN_Enumerate(plugin->npp, NPVARIANT_TO_OBJECT(element), &properties, &propertiesCount)) {
+                    for (uint32_t i = 0; (ER_OK == status) && (i < propertiesCount); ++i) {
+                        if (!NPN_IdentifierIsString(properties[i])) {
+                            continue;
+                        }
+                        NPUTF8* property = NPN_UTF8FromIdentifier(properties[i]);
+                        if (!property) {
+                            status = ER_OUT_OF_MEMORY;
+                            break;
+                        }
+                        NPVariant npvalue = NPVARIANT_VOID;
+                        if (!NPN_GetProperty(plugin->npp, NPVARIANT_TO_OBJECT(element), properties[i], &npvalue)) {
+                            continue;
+                        }
+                        qcc::String value = ToDOMString(plugin, npvalue, typeError);
+                        if (typeError) {
+                            continue;
+                        }
+                        NPN_ReleaseVariantValue(&npvalue);
+
+                        if (!strcmp(property, "name")) {
+                            name = value;
+                        } else if (!strcmp(property, "signature")) {
+                            signature = value;
+                        } else if (!strcmp(property, "access")) {
+                            if (value == "readwrite") {
+                                accessFlags = ajn::PROP_ACCESS_RW;
+                            } else if (value == "read") {
+                                accessFlags = ajn::PROP_ACCESS_READ;
+                            } else if (value == "write") {
+                                accessFlags = ajn::PROP_ACCESS_WRITE;
+                            }
+                        } else {
+                            annotations[property] = value;
+                        }
+                        NPN_MemFree(property);
                     }
+                    NPN_MemFree(properties);
                 }
+
                 status = interface->AddProperty(name.empty() ? 0 : name.c_str(),
                                                 signature.empty() ? 0 : signature.c_str(),
                                                 accessFlags);
-
-                NPN_ReleaseVariantValue(&npname);
-                NPN_ReleaseVariantValue(&npsignature);
-                NPN_ReleaseVariantValue(&access);
+                for (ajn::InterfaceDescription::AnnotationsMap::const_iterator it = annotations.begin();
+                     (ER_OK == status) && (it != annotations.end()); ++it) {
+                    status = interface->AddPropertyAnnotation(name, it->first, it->second);
+                }
             }
             NPN_ReleaseVariantValue(&element);
         }
@@ -447,17 +472,11 @@ bool _InterfaceDescriptionsHost::getInterfaceDescription(const qcc::String& name
                             goto exit;
                         }
 
-                        NPVariant annotation;
-                        BOOLEAN_TO_NPVARIANT(true, annotation);
-                        if (members[i]->annotations.find(ajn::org::freedesktop::DBus::AnnotateDeprecated) != members[i]->annotations.end()) {
-                            if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(method), NPN_GetStringIdentifier("org.freedesktop.DBus.Deprecated"), &annotation)) {
-                                status = ER_FAIL;
-                                QCC_LogError(status, ("NPN_SetProperty failed"));
-                                goto exit;
-                            }
-                        }
-                        if (members[i]->annotations.find(ajn::org::freedesktop::DBus::AnnotateNoReply) != members[i]->annotations.end()) {
-                            if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(method), NPN_GetStringIdentifier("org.freedesktop.DBus.Method.NoReply"), &annotation)) {
+                        for (ajn::InterfaceDescription::AnnotationsMap::const_iterator it = members[i]->annotations.begin();
+                             it != members[i]->annotations.end(); ++it) {
+                            NPVariant annotation;
+                            STRINGZ_TO_NPVARIANT(it->second.c_str(), annotation);
+                            if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(method), NPN_GetStringIdentifier(it->first.c_str()), &annotation)) {
                                 status = ER_FAIL;
                                 QCC_LogError(status, ("NPN_SetProperty failed"));
                                 goto exit;
@@ -507,10 +526,11 @@ bool _InterfaceDescriptionsHost::getInterfaceDescription(const qcc::String& name
                             goto exit;
                         }
 
-                        NPVariant annotation;
-                        BOOLEAN_TO_NPVARIANT(true, annotation);
-                        if (members[i]->annotations.find(ajn::org::freedesktop::DBus::AnnotateDeprecated) != members[i]->annotations.end()) {
-                            if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(signal), NPN_GetStringIdentifier("org.freedesktop.DBus.Deprecated"), &annotation)) {
+                        for (ajn::InterfaceDescription::AnnotationsMap::const_iterator it = members[i]->annotations.begin();
+                             it != members[i]->annotations.end(); ++it) {
+                            NPVariant annotation;
+                            STRINGZ_TO_NPVARIANT(it->second.c_str(), annotation);
+                            if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(signal), NPN_GetStringIdentifier(it->first.c_str()), &annotation)) {
                                 status = ER_FAIL;
                                 QCC_LogError(status, ("NPN_SetProperty failed"));
                                 goto exit;
@@ -571,6 +591,17 @@ bool _InterfaceDescriptionsHost::getInterfaceDescription(const qcc::String& name
                         status = ER_FAIL;
                         QCC_LogError(status, ("NPN_SetProperty failed"));
                         goto exit;
+                    }
+
+                    for (ajn::InterfaceDescription::AnnotationsMap::const_iterator it = props[i]->annotations.begin();
+                         it != props[i]->annotations.end(); ++it) {
+                        NPVariant annotation;
+                        STRINGZ_TO_NPVARIANT(it->second.c_str(), annotation);
+                        if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(property), NPN_GetStringIdentifier(it->first.c_str()), &annotation)) {
+                            status = ER_FAIL;
+                            QCC_LogError(status, ("NPN_SetProperty failed"));
+                            goto exit;
+                        }
                     }
 
                     if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(propertyArray), NPN_GetIntIdentifier(j++), &property)) {

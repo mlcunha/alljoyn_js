@@ -163,7 +163,7 @@ AsyncTestCase("ProxyBusObjectTest", {
                     assertEquals(0, bus.connect());
                     var onIntrospect = callbacks.add(function() {
                             var intf = bus.interfaces["org.alljoyn.bus.samples.simple.SimpleInterface"];
-                            assertTrue(intf.method[0]["org.freedesktop.DBus.Deprecated"]);
+                            assertEquals("true", intf.method[0]["org.freedesktop.DBus.Deprecated"]);
                         });
                     var proxy = bus.proxy[otherBus.uniqueName + "/testobject"];
                     proxy.introspect(onIntrospect, callbacks.addErrback(onError));
