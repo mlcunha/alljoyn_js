@@ -69,12 +69,16 @@ QStatus _Plugin::Initialize()
         QCC_LogError(status, ("Get PluginElementNPObject failed - %d", ret));
         goto exit;
     }
+    /*
+     * The below doesn't work on recent chrome: http://code.google.com/p/chromium/issues/detail?id=129570.
+     * StrictEquals falls back to pointer comparison, which does work (at least for chrome).
+     */
     if (!NPN_Evaluate(npp, pluginElement, &script, &variant)) {
         status = ER_FAIL;
         QCC_LogError(status, ("Evaluate failed"));
         goto exit;
     }
-    if (!NPN_SetProperty(npp, pluginElement, NPN_GetStringIdentifier("strictEquals"), &variant)) {
+    if (NPVARIANT_IS_OBJECT(variant) && !NPN_SetProperty(npp, pluginElement, NPN_GetStringIdentifier("strictEquals"), &variant)) {
         status = ER_FAIL;
         QCC_LogError(status, ("Set strictEquals failed"));
         goto exit;
@@ -186,7 +190,8 @@ bool _Plugin::StrictEquals(const NPVariant& a, const NPVariant& b) const
                 NPVARIANT_IS_BOOLEAN(result)) {
                 equals = NPVARIANT_TO_BOOLEAN(result);
             } else {
-                QCC_LogError(ER_FAIL, ("NPN_Invoke(strictEquals) failed"));
+                QCC_LogError(ER_WARNING, ("NPN_Invoke(strictEquals) failed, falling back to pointer comparison"));
+                equals = NPVARIANT_TO_OBJECT(a) == NPVARIANT_TO_OBJECT(b);
             }
         } else {
             QCC_LogError(ER_FAIL, ("NPN_GetValue()=%d", error));
