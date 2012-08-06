@@ -55,11 +55,12 @@ AsyncTestCase("BusObjectTest", {
         testRegisterUnregisterCallbacks: function(queue) {
             queue.call(function(callbacks) {
                     bus["/busObject"] = {
-                        onRegistered: callbacks.add(function() {}),
+                        onRegistered: callbacks.add(function() {
+                            bus["/busObject"] = undefined; // delete bus["/busObject"] doesn't work in chrome
+                        }),
                         onUnregistered: callbacks.add(function() {})
                     };
                     assertEquals(0, bus.connect());
-                    assertEquals(0, bus.disconnect());
                 });
         },
 
