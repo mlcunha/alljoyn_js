@@ -117,6 +117,31 @@ void BusListenerNative::onNameOwnerChanged(const qcc::String& busName, const qcc
     }
 }
 
+void BusListenerNative::onPropertyChanged(const qcc::String& propName, const ajn::MsgArg* propValue)
+{
+    QCC_DbgTrace(("%s(propName=%s,propValue=%s)", __FUNCTION__, propName.c_str(), propValue ? propValue->ToString().c_str() : "<NULL>"));
+    NPIdentifier onPropertyChanged = NPN_GetStringIdentifier("onPropertyChanged");
+    if (NPN_HasMethod(plugin->npp, objectValue, onPropertyChanged)) {
+        NPVariant npargs[2];
+        ToDOMString(plugin, propName, npargs[0]);
+
+        if (propValue != NULL) {
+            QStatus status = ER_OK;
+            ToAny(plugin, *propValue, npargs[1], status);
+            assert(status == ER_OK);
+        } else {
+            // null string indicates no propValue
+            ToDOMString(plugin, NULL, 0, npargs[1], TreatEmptyStringAsNull);
+        }
+
+        NPVariant result = NPVARIANT_VOID;
+        NPN_Invoke(plugin->npp, objectValue, onPropertyChanged, npargs, 2, &result);
+        NPN_ReleaseVariantValue(&result);
+        NPN_ReleaseVariantValue(&npargs[1]);
+        NPN_ReleaseVariantValue(&npargs[0]);
+    }
+}
+
 void BusListenerNative::onStopping()
 {
     QCC_DbgTrace(("%s", __FUNCTION__));

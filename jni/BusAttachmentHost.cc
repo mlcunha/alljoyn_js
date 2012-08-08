@@ -229,6 +229,27 @@ class BusListener : public ajn::BusListener {
         context->env->busListenerNative->onNameOwnerChanged(context->busName, context->previousOwner, context->newOwner);
     }
 
+    class PropertyChangedContext : public PluginData::CallbackContext {
+      public:
+        Env env;
+        const qcc::String propName;
+        const ajn::MsgArg* propValue;
+        PropertyChangedContext(Env& env, const char* propName, const ajn::MsgArg* propValue)
+            : env(env)
+            , propName(propName)
+            , propValue(propValue) { }
+    };
+    virtual void PropertyChanged(const char* propName, const ajn::MsgArg* propValue) {
+        PluginData::Callback callback(env->plugin, _PropertyChanged);
+        callback->context = new PropertyChangedContext(env, propName, propValue);
+        PluginData::DispatchCallback(callback);
+    }
+    static void _PropertyChanged(PluginData::CallbackContext* ctx) {
+        PropertyChangedContext* context = static_cast<PropertyChangedContext*>(ctx);
+        context->env->busListenerNative->onPropertyChanged(context->propName, context->propValue);
+    }
+
+
     class BusStoppingContext : public PluginData::CallbackContext {
       public:
         Env env;

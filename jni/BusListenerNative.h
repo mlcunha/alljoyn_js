@@ -31,6 +31,7 @@ class BusListenerNative : public NativeObject {
     void onFoundAdvertisedName(const qcc::String& name, ajn::TransportMask transport, const qcc::String& namePrefix);
     void onLostAdvertisedName(const qcc::String& name, ajn::TransportMask transport, const qcc::String& namePrefix);
     void onNameOwnerChanged(const qcc::String& busName, const qcc::String& previousOwner, const qcc::String& newOwner);
+    void onPropertyChanged(const qcc::String& propName, const ajn::MsgArg* propValue);
     void onStopping();
     void onDisconnected();
 };
