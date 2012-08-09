@@ -33,6 +33,12 @@ QStatus KeyStoreListener::LoadRequest(ajn::KeyStore& keyStore)
     jbyte* jelements;
     qcc::String keys;
 
+    if (!plugin->securityClient) {
+        status = ER_FAIL;
+        QCC_LogError(status, ("SecurityClient is NULL"));
+        goto exit;
+    }
+
     jret = gVM->GetEnv((void** )&env, JNI_VERSION_1_4);
     detach = (JNI_EDETACHED == jret);
     if (detach) {
@@ -93,6 +99,12 @@ QStatus KeyStoreListener::StoreRequest(ajn::KeyStore& keyStore)
     jmethodID mid;
     qcc::String keys;
     jbyteArray jkeys;
+
+    if (!plugin->securityClient) {
+        status = ER_FAIL;
+        QCC_LogError(status, ("SecurityClient is NULL"));
+        goto exit;
+    }
 
     jret = gVM->GetEnv((void** )&env, JNI_VERSION_1_4);
     detach = (JNI_EDETACHED == jret);
