@@ -21,7 +21,7 @@ var alljoyn = (function() {
          * hosting bus attachment will request and advertise.
          */
         var NAME_PREFIX = "org.alljoyn.bus.samples.chat",
-	/* The well-known session port used as the contact port for the chat service. */
+        /* The well-known session port used as the contact port for the chat service. */
             CONTACT_PORT = 27,
         /* The object path used to identify the service "location" in the bus attachment. */
             OBJECT_PATH = "/chatService";
@@ -31,7 +31,22 @@ var alljoyn = (function() {
             bus,
             channelName,
             channelNames,
-            sessionId,
+            /*
+             * The session identifier of the "use" session that the application uses to talk to
+             * remote instances.  Set to -1 if not connectecd.
+             */
+            sessionId = -1,
+            /*
+             * The session identifier of the "host" session that the application provides for remote
+             * devices.  Set to -1 if not connected.
+             */
+            hostSessionId = -1,
+            /*
+             * A flag indicating that the application has joined a chat channel that it is hosting.
+             * See the long comment in joinChannel() for a description of this rather
+             * non-intuitively complicated case.
+             */
+            joinedToSelf = false,
             addChannelName,
             removeChannelName;
 
@@ -40,11 +55,11 @@ var alljoyn = (function() {
          */
         aj = org.alljoyn.bus;
 
-	/*
-	 * The channels list is the list of all well-known names that correspond to channels we
-	 * might conceivably be interested in.  The "use" tab will display this list in the
-	 * "joinChannel" form.  Choosing one will result in a joinSession call.
-	 */
+        /*
+         * The channels list is the list of all well-known names that correspond to channels we
+         * might conceivably be interested in.  The "use" tab will display this list in the
+         * "joinChannel" form.  Choosing one will result in a joinSession call.
+         */
         channelNames = [];
         addChannelName = function(name) {
             name = name.slice(NAME_PREFIX.length + 1);
@@ -142,49 +157,19 @@ var alljoyn = (function() {
              */
             onChat = function(context, str) {
                 /*
-                 * There are aspects of multipoint sessions using signals that are perhaps a little
-                 * counter-intuitive.  This deserves a comment here since we have some code to deal
-                 * with a couple of special cases.
+                 * See the long comment in joinChannel() for more explanation of why this is needed.
                  * 
-                 * The root of this situation is that we have a single bus attachment that can both
-                 * host multipoint sessions using bindSessionPort() and can join them using
-                 * joinSession().  This works great until we join the same session we have bound.
-                 * 
-                 * When we bind a session port, we set up a listener to either accept or reject
-                 * session joiners.  In our case, we accept any joiner that can get the contact port
-                 * right.  This results in an implicit joining of the session, with the session ID
-                 * passed to the SessionJoinedListener callback.  We don't use that session ID, but
-                 * as a side-effect, routing of signals from the bus to our bus attachment are
-                 * enabled.
-                 * 
-                 * When we join a session, we also enable the routing of signals from the bus to our
-                 * bus attachment.
-                 * 
-                 * We send our chat messages over signals.  Signals are not "echoed" back to the
-                 * source, so we do that echo below in that.chat using the nickname "Me."
-                 * 
-                 * Whenever we have a hosted session running and we have had a joiner on our
-                 * session, we have signals enabled on the session.  We will receive messages sent
-                 * to the multipoint session.  This means we have to deal with two corner cases:
-                 * 
-                 * (1) If the application is hosting a channel, and the user has joined/used another
-                 *     channel, we must prevent messages sent on the hosted channel from being
-                 *     displayed on the used channel history.  In this case, the session ID of the
-                 *     hosted channel and the used channel will be different and so we filter the
-                 *     messages on the sessionId.
-                 *     
-                 * (2) If the application is hosting a channel, and the user has joined/used that
-                 *     channel, when a user types a message it will be sent out over the multipoint
-                 *     session and not be echoed locally.  However, since there is an immplied join
-                 *     when the hosting session returns true from onAccept, any messages sent by the
-                 *     joiner will be received by the hosting session and it will look like the
-                 *     messages were echoed.  In this case, the sender's unique ID will be the same
-                 *     as our own bus attachment and we filter the messages on the sender.
+                 * The only time we allow a signal from the hosted session ID to pass through is if
+                 * we are in the joined to self state.  If the source of the signal is us, we also
+                 * filter out the signal since we are going to locally echo the signal.
                  */
-                if (context.sessionId !== sessionId || context.sender === bus.uniqueName) {
+                if (context.sender === bus.uniqueName) {
                     return;
                 }
-                that.onchat(context.sender, str);
+                if ((context.sessionId == hostSessionId && joinedToSelf) ||
+                    (context.sessionId == sessionId)) {
+                    that.onchat(context.sender, str);
+                }
             };
             bus.registerSignalHandler(onChat, "org.alljoyn.bus.samples.chat.Chat");
             /*
@@ -218,8 +203,21 @@ var alljoyn = (function() {
             status = bus.bindSessionPort({
                     port: CONTACT_PORT, 
                     isMultipoint: true,
+                    /*
+                     * This method is called when a client tries to join the session we have bound.
+                     * It asks us if we want to accept the client into our session.
+                     */
                     onAccept: function(port, joiner, opts) { 
                         return (port === CONTACT_PORT); 
+                    },
+                    /*
+                     * If we return true in onAccept, we admit a new client into our session.  The
+                     * session does not really exist until a client joins, at which time the session
+                     * is created and a session ID is assigned.  This method communicates to us that
+                     * this event has happened, and provides the new session ID for us to use.
+                     */
+                    onJoined: function(port, id, joiner) {
+                        hostSessionId = id;
                     }
                 });
             if (status) {
@@ -264,6 +262,57 @@ var alljoyn = (function() {
         /* Joins an existing session. */
         that.joinChannel = function(onjoined, onerror, name) {
             /*
+             * There is a relatively non-intuitive behavior of multipoint sessions that one needs to
+             * grok in order to understand the code below.  The important thing to understand is
+             * that there can be only one endpoint for a multipoint session in a particular bus
+             * attachment.  This endpoint can be created explicitly by a call to joinSession() or
+             * implicitly by a call to bindSessionPort().  An attempt to call joinSession() on a
+             * session port we have created with bindSessionPort() will result in an error.
+             * 
+             * When we call bindSessionPort(), we do an implicit joinSession() and thus signals
+             * (which correspond to our chat messages) will begin to flow from the hosted chat
+             * channel as soon as we begin to host a corresponding session.
+             * 
+             * To achieve sane user interface behavior, we need to block those signals from the
+             * implicit join done by the bind until our user joins the bound chat channel.  If we do
+             * not do this, the chat messages from the chat channel hosted by the application will
+             * appear in the chat channel joined by the application.
+             *
+             * Since the messages flow automatically, we can accomplish this by turning a filter on
+             * and off in the chat signal handler.  So if we detect that we are hosting a channel,
+             * and we find that we want to join the hosted channel we turn the filter off.
+             * 
+             * We also need to be able to send chat messages to the hosted channel.  This means we
+             * need to point the mChatInterface at the session ID of the hosted session.  There is
+             * another complexity here since the hosted session doesn't exist until a remote session
+             * has joined.  This means that we don't have a session ID to use in chat() until a
+             * remote device does a joinSession on our hosted session.  This, in turn, means that we
+             * have to remember the session ID when we get an onJoined() callback in the
+             * SessionPortListener passed into bindSessionPort().
+             * 
+             * So, to summarize, these next few lines handle a relatively complex case.  When we
+             * host a chat channel, we do a bindSessionPort which *enables* the creation of a
+             * session.  As soon as a remote device joins the hosted chat channel, a session is
+             * actually created, and the SessionPortListener onJoined() callback is fired.  At that
+             * point, we remember the hosted session's sessionId that we can use to send chat
+             * messages to the channel we are hosting.  As soon as the session comes up, we begin
+             * receiving chat messages from the session, so we need to filter them until the user
+             * joins the hosted chat channel.  In a separate timeline, the user can decide to join
+             * the chat channel she is hosting.  She can do so either before or after the
+             * corresponding session has been created as a result of a remote device joining the
+             * hosted session.  If she joins the hosted channel before the underlying session is
+             * created, her chat messages will be discarded.  If she does so after the underlying
+             * session is created, there will be a session emitter waiting to use to send chat
+             * messages.  In either case, the signal filter will be turned off in order to listen to
+             * remote chat messages.
+             */
+            if (name === channelName) {
+                joinedToSelf = true;
+                setTimeout(onjoined, 0);
+                return;
+            }
+
+            /*
              * The well-known name of the existing session is the concatenation of the NAME_PREFIX
              * and a channel name from the channelNames array.
              */
@@ -301,18 +350,29 @@ var alljoyn = (function() {
 
         /* Releases all resources acquired in joinChannel. */
         that.leaveChannel = function() {
-            bus.leaveSession(sessionId);
+            if (!joinedToSelf) {
+                bus.leaveSession(sessionId);
+            }
+            sessionId = -1;
+            joinedToSelf = false;
         };
 
         /* Sends a message out over an existing remote session. */
         that.chat = function(str) {
+            var id;
+
             try {
                 /*
                  * This is a call to the implicit signal emitter method described above when the bus
                  * object was registered.  Note the use of the optional parameters to specify the
                  * session ID of the remote session.
+                 *
+                 * If we are joined to a remote session, we send the message over the remote session
+                 * ID.  If we are implicitly joined to a session we are hosting, we send the message
+                 * over the hosted session ID.
                  */
-                bus[OBJECT_PATH]["org.alljoyn.bus.samples.chat"].Chat(str, { sessionId: sessionId });
+                id = joinedToSelf ? hostSessionId : sessionId;
+                bus[OBJECT_PATH]["org.alljoyn.bus.samples.chat"].Chat(str, { sessionId: id });
                 that.onchat("Me", str);
             } catch (err) {
                 /*
