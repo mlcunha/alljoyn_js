@@ -29,8 +29,8 @@ _SocketFdInterface::_SocketFdInterface(Plugin& plugin)
     /*
      * TODO These are disabled due to browser deficiencies.
      */
-    //OPERATION("createObjectURL", &_SocketFdInterface::createObjectURL);
-    //OPERATION("revokeObjectURL", &_SocketFdInterface::revokeObjectURL);
+    OPERATION("createObjectURL", &_SocketFdInterface::createObjectURL);
+    OPERATION("revokeObjectURL", &_SocketFdInterface::revokeObjectURL);
 }
 
 _SocketFdInterface::~_SocketFdInterface()

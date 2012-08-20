@@ -166,7 +166,7 @@ bool _SocketFdHost::send(const NPVariant* args, uint32_t argCount, NPVariant* re
     /*
      * TODO Send URL is disabled due to browser deficiencies.
      */
-    if (false) { // NPVARIANT_IS_STRING(args[0])) {
+    if (NPVARIANT_IS_STRING(args[0])) {
         url = ToDOMString(plugin, args[0], typeError);
         if (typeError) {
             plugin->RaiseTypeError("argument 0 is not a string");

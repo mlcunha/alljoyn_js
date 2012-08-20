@@ -96,6 +96,7 @@ HttpServer::RequestThread::RequestThread(HttpServer* httpServer, qcc::SocketFd r
     , stream(requestFd)
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
+    stream.SetSendTimeout(qcc::Event::WAIT_FOREVER);
 }
 
 qcc::ThreadReturn STDCALL HttpServer::RequestThread::Run(void* arg)
@@ -109,7 +110,7 @@ qcc::ThreadReturn STDCALL HttpServer::RequestThread::Run(void* arg)
         return 0;
     }
 
-    QCC_DbgTrace(("[%d] %s", stream.GetSocketFd(), stream.GetSocketFd(), line.c_str()));
+    QCC_DbgTrace(("[%d] %s", stream.GetSocketFd(), line.c_str()));
     qcc::String method, requestUri, httpVersion;
     ParseRequest(line, method, requestUri, httpVersion);
     if (method != "GET") {
@@ -130,7 +131,7 @@ qcc::ThreadReturn STDCALL HttpServer::RequestThread::Run(void* arg)
         line.clear();
         status = stream.GetLine(line);
         if (ER_OK == status) {
-            QCC_DbgTrace(("[%d] %s", stream.GetSocketFd(), stream.GetSocketFd(), line.c_str()));
+            QCC_DbgTrace(("[%d] %s", stream.GetSocketFd(), line.c_str()));
         }
     }
     if (ER_OK != status) {
@@ -149,6 +150,8 @@ qcc::ThreadReturn STDCALL HttpServer::RequestThread::Run(void* arg)
     qcc::String response;
     response = "HTTP/1.1 200 OK\r\n";
     response += "Date: " + qcc::UTCTime() + "\r\n";
+    response += "Content-type: application/octet-stream\r\n"; // TODO
+    response += "Cache-Control: no-cache\r\n";                // TODO
     response += "\r\n";
     status = PushBytes(stream, response.data(), response.size());
     if (ER_OK != status) {
@@ -159,19 +162,28 @@ qcc::ThreadReturn STDCALL HttpServer::RequestThread::Run(void* arg)
     /*
      * Now pump out data.
      */
-    char* buffer = new char[8192];
+    char* buffer = new char[4096];
     while (ER_OK == status) {
         size_t received = 0;
-        status = qcc::Recv(sessionFd, buffer, 8192, received);
+        status = qcc::Recv(sessionFd, buffer, 4096, received);
         if (ER_OK == status) {
             if (0 == received) {
                 status = ER_SOCK_OTHER_END_CLOSED;
+                QCC_LogError(status, ("Recv failed"));
             } else {
                 status = PushBytes(stream, buffer, received);
+                if (ER_OK != status) {
+                    QCC_LogError(status, ("PushBytes failed"));
+                }
             }
         } else if (ER_WOULDBLOCK == status) {
             qcc::Event recvEvent(sessionFd, qcc::Event::IO_READ, false);
             status = qcc::Event::Wait(recvEvent);
+            if (ER_OK != status) {
+                QCC_LogError(status, ("Wait failed"));
+            }
+        } else {
+            QCC_LogError(status, ("Recv failed"));
         }
     }
     delete[] buffer;
