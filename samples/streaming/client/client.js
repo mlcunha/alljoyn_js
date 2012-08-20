@@ -1,5 +1,28 @@
-var SERVICE_NAME = "trm.session",
-    SESSION_PORT = 111;
+/*
+ * UI
+ */
+var $ = function(id) {
+    return document.getElementById(id);
+}
+
+var video = $("video"),
+    events = ["loadstart", "progress", "suspend", "abort", "error", "emptied", "stalled", "loadedmetadata", "loadeddata", "canplay", "canplaythrough", "playing", "waiting", "seeking", "seeked", "ended", "durationchange", "timeupdate", "play", "pause", "ratechange", "volumechange"],
+    i;
+
+var logEvent = function(name) {
+    return function(evt) {
+        console.log(name + ": " + evt);
+    };
+};
+for (i = 0; i < events.length; ++i) {
+    video.addEventListener(events[i], logEvent(events[i]));
+}
+
+/*
+ * AllJoyn
+ */
+var SERVICE_NAME = "org.alljoyn.trm_test",
+    SESSION_PORT = 33;
 
 var start = function() {
     var bus,
@@ -14,20 +37,20 @@ var start = function() {
             onFoundAdvertisedName: function(name, transport, namePrefix) {
                 var onJoinSession = function(id, opts) {
                     var fd,
-                        url,
-                        audio;
+                        url;
 
                     fd = bus.getSessionFd(id);
                     url = org.alljoyn.bus.SocketFd.createObjectURL(fd);
-                    audio = document.getElementById("audio");
-                    audio.src = url;
-                    audio.load();
-                    audio.play();
+                    video.src = url;
+                    //video.load();
+                    //video.play();
                 };
                 status = bus.joinSession(onJoinSession, onError, {
                         host: name,
                         port: SESSION_PORT,
-                        traffic: org.alljoyn.bus.SessionOpts.TRAFFIC_RAW_RELIABLE
+                        traffic: org.alljoyn.bus.SessionOpts.TRAFFIC_RAW_RELIABLE,
+                        onLost: function(id) {
+                        }
                     });
                 if (status) {
                     alert("Join session '" + name + "' failed [(" + status + ")]");
