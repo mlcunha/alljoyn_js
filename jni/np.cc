@@ -47,6 +47,7 @@ static void InitializeDebug()
 static NPError InitializePluginFuncs(NPPluginFuncs* pFuncs)
 {
     if (!pFuncs) {
+        QCC_LogError(ER_FAIL, ("Null NPPluginFuncs - NPERR_INVALID_FUNCTABLE_ERROR"));
         return NPERR_INVALID_FUNCTABLE_ERROR;
     }
     pFuncs->size = sizeof(NPPluginFuncs);
@@ -71,12 +72,17 @@ static NPError InitializePluginFuncs(NPPluginFuncs* pFuncs)
 static NPError InitializeNetscapeFuncs(NPNetscapeFuncs* bFuncs)
 {
     if (!bFuncs) {
+        QCC_LogError(ER_FAIL, ("Null NPNetscapeFuncs - NPERR_INVALID_FUNCTABLE_ERROR"));
         return NPERR_INVALID_FUNCTABLE_ERROR;
     }
     if (((bFuncs->version >> 8) & 0xff) > NP_VERSION_MAJOR) {
+        QCC_LogError(ER_FAIL, ("Incompatible version %d > %d - NPERR_INCOMPATIBLE_VERSION_ERROR",
+                               (bFuncs->version >> 8) & 0xff, NP_VERSION_MAJOR));
         return NPERR_INCOMPATIBLE_VERSION_ERROR;
     }
     if (bFuncs->size < sizeof(NPNetscapeFuncs)) {
+        QCC_LogError(ER_FAIL, ("NPNetscapeFuncs unexpected size %d < %d - NPERR_GENERIC_ERROR",
+                               bFuncs->size, sizeof(NPNetscapeFuncs)));
         return NPERR_GENERIC_ERROR;
     }
     npn = (NPNetscapeFuncs*) malloc(sizeof(NPNetscapeFuncs));
