@@ -31,6 +31,7 @@ extern NPNetscapeFuncs* npn;
 #include <android_npapi.h>
 #include <ANPSystem_npapi.h>
 #include <jni.h>
+#define NPPDataDeliveryDelayMs 100
 extern JavaVM* gVM;
 #endif
 extern qcc::Thread* gPluginThread;

@@ -17,9 +17,9 @@
     <body>
         <script type="text/javascript">
             handleFiles = function(files) { 
-                var URL = window.URL || window.webkitURL;
+                window.URL = window.URL || window.webkitURL;
                 console.log(files);
-                url = URL.createObjectURL(files[0]);
+                url = window.URL.createObjectURL(files[0]);
                 console.log(url);
             }
         </script>

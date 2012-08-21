@@ -59,7 +59,9 @@ static jint SecurityService_aliasUnixUser(JNIEnv* env,
         status = alljoyn.MethodCall(ajn::org::alljoyn::Bus::InterfaceName, "AliasUnixUser", &arg, 1, reply);
         if (ER_OK != status) {
             qcc::String errMsg;
+#if !defined(NDEBUG)
             const char* errName = reply->GetErrorName(&errMsg);
+#endif
             QCC_LogError(status, ("MethodCall failed - %s %s", errName, errMsg.c_str()));
             goto exit;
         }

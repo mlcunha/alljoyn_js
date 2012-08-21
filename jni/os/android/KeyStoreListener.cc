@@ -25,7 +25,7 @@ QStatus KeyStoreListener::LoadRequest(ajn::KeyStore& keyStore)
     QStatus status = ER_OK;
     JNIEnv* env = 0;
     jint jret;
-    bool detach;
+    bool detach = false;
     jclass clazz;
     jmethodID mid;
     jbyteArray jkeys;
@@ -94,7 +94,7 @@ QStatus KeyStoreListener::StoreRequest(ajn::KeyStore& keyStore)
     QStatus status = ER_OK;
     JNIEnv* env = 0;
     jint jret;
-    bool detach;
+    bool detach = false;
     jclass clazz;
     jmethodID mid;
     qcc::String keys;

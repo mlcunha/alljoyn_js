@@ -291,7 +291,6 @@ NPError NPP_GetValue(NPP npp, NPPVariable var, void* value)
 #endif
 
 #if defined(QCC_OS_ANDROID)
-#define NPPDataDeliveryDelayMs 100
     case NPPDataDeliveryDelayMs:
         QCC_DbgTrace(("%s(variable=%s)", __FUNCTION__, "NPPDataDeliveryDelayMs"));
         break;

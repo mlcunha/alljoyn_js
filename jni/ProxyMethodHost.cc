@@ -324,7 +324,7 @@ bool _ProxyMethodHost::apply(const NPVariant* args, uint32_t argCount, NPVariant
     NPVariant length;
     uint32_t len = 0;
     NPVariant* argList = 0;
-    bool ret;
+    bool ret = false;
 
     if (argCount < 1) {
         typeError = true;
