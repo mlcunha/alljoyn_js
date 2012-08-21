@@ -15,7 +15,7 @@ var start = function() {
     status = bus.bindSessionPort({
             port: SESSION_PORT,
             traffic: org.alljoyn.bus.SessionOpts.TRAFFIC_RAW_RELIABLE,
-            transport: org.alljoyn.bus.SessionOpts.TRANSPORT_LOCAL,
+            transport: org.alljoyn.bus.SessionOpts.TRANSPORT_WLAN,
             onAccept: function(port, joiner, opts) { 
                 return true; 
             },
@@ -23,7 +23,9 @@ var start = function() {
                 var fd;
 
                 fd = bus.getSessionFd(id);
-                fd.send("http://localhost/~tmalsbar/streaming/file.mp3");
+                //fd.send("http://localhost/~tmalsbar/streaming/file.mp3");
+                //fd.send("file:///home/tmalsbar/tmp/Elephants_Dream-720p-Stereo.webm"); // TODO can't access file URLs
+                fd.send(url); // TODO This does work!
             }
         });
     if (status) {

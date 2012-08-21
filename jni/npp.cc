@@ -86,6 +86,7 @@ NPError NPP_NewStream(NPP npp, NPMIMEType type, NPStream* stream, NPBool seekabl
     if (!npp) {
         return NPERR_INVALID_INSTANCE_ERROR;
     }
+    //*stype = NP_ASFILEONLY; // TODO May be able to do this workaround for chrome local files, but it will copy the whole file
     *stype = NP_NORMAL;
     return NPERR_NO_ERROR;
 }
@@ -111,7 +112,7 @@ int32_t NPP_WriteReady(NPP npp, NPStream* stream)
     return NP_MAXREADY;
 #else
     /*
-     * Chrome doesn't correctly support returning 0.
+     * TODO Chrome doesn't correctly support returning 0.
      */
     int32_t numReady;
     if (strstr(NPN_UserAgent(npp), "Chrome")) {
@@ -151,21 +152,18 @@ int32_t NPP_Write(NPP npp, NPStream* stream, int32_t offset, int32_t len, void* 
      * to do the correct non-blocking write.
      */
     qcc::SocketFd streamFd = reinterpret_cast<intptr_t>(stream->notifyData);
-    QStatus status;
     int32_t numSent;
     int ret = send(static_cast<int>(streamFd), buffer, len, MSG_NOSIGNAL);
     if (-1 != ret) {
         numSent = ret;
-        status = ER_OK;
     } else if (EAGAIN == errno) {
         numSent = 0;
-        status = ER_OK;
     } else {
         QCC_LogError(ER_OS_ERROR, ("%d - %s", errno, strerror(errno)));
         numSent = -1;
     }
     /*
-     * Chrome doesn't correctly support returning 0.
+     * TODO Chrome doesn't correctly support returning 0.
      */
     if ((-1 != numSent) && strstr(NPN_UserAgent(npp), "Chrome")) {
         if (numSent != len) {
@@ -211,8 +209,9 @@ void NPP_URLNotify(NPP npp, const char* url, NPReason reason, void* notifyData)
     }
 }
 
-NPError NPP_GetValue(NPP npp, NPPVariable variable, void* value)
+NPError NPP_GetValue(NPP npp, NPPVariable var, void* value)
 {
+    int variable = var;
     switch (variable) {
 #if !defined(NDEBUG)
     case NPPVpluginNameString:
@@ -290,6 +289,14 @@ NPError NPP_GetValue(NPP npp, NPPVariable variable, void* value)
         QCC_DbgTrace(("%s(variable=%s)", __FUNCTION__, "NPPVpluginWindowlessLocalBool"));
         break;
 #endif
+
+#if defined(QCC_OS_ANDROID)
+#define NPPDataDeliveryDelayMs 100
+    case NPPDataDeliveryDelayMs:
+        QCC_DbgTrace(("%s(variable=%s)", __FUNCTION__, "NPPDataDeliveryDelayMs"));
+        break;
+#endif
+
 #endif // !NDEBUG
 
     default:
@@ -318,6 +325,12 @@ NPError NPP_GetValue(NPP npp, NPPVariable variable, void* value)
         *(NPObject** )value = pluginData->GetScriptableObject();
         break;
     }
+
+#if defined(QCC_OS_ANDROID)
+    case NPPDataDeliveryDelayMs:
+        *((int*)value) = 100;   // TODO
+        break;
+#endif
 
     default:
         ret = NPERR_GENERIC_ERROR;

@@ -15,6 +15,16 @@
 -->
 <html>
     <body>
+        <script type="text/javascript">
+            handleFiles = function(files) { 
+                var URL = window.URL || window.webkitURL;
+                console.log(files);
+                url = URL.createObjectURL(files[0]);
+                console.log(url);
+            }
+        </script>
+        <input type="file" id="input" accept="video/*" onchange="handleFiles(this.files)"></input>
+
         <script type="text/javascript" src="../../alljoyn_init.js"></script> 
         <script type="text/javascript" src="server.js"></script>
     </body>

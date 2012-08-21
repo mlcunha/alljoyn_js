@@ -21,8 +21,8 @@ for (i = 0; i < events.length; ++i) {
 /*
  * AllJoyn
  */
-var SERVICE_NAME = "org.alljoyn.trm_test",
-    SESSION_PORT = 33;
+var SERVICE_NAME = "trm.session",
+    SESSION_PORT = 111;
 
 var start = function() {
     var bus,
@@ -48,9 +48,7 @@ var start = function() {
                 status = bus.joinSession(onJoinSession, onError, {
                         host: name,
                         port: SESSION_PORT,
-                        traffic: org.alljoyn.bus.SessionOpts.TRAFFIC_RAW_RELIABLE,
-                        onLost: function(id) {
-                        }
+                        traffic: org.alljoyn.bus.SessionOpts.TRAFFIC_RAW_RELIABLE
                     });
                 if (status) {
                     alert("Join session '" + name + "' failed [(" + status + ")]");
