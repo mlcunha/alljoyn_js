@@ -68,7 +68,7 @@ CFLAGS=-Wall \
 CXXFLAGS=-Wall \
         -Werror=non-virtual-dtor \
         -pipe \
-        -std=c++98 \
+        -std=c++0x \
         -fno-rtti \
         -fno-exceptions \
         -fno-strict-aliasing \
