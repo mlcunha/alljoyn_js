@@ -480,11 +480,12 @@ bool _InterfaceDescriptionsHost::getInterfaceDescription(const qcc::String& name
                             goto exit;
                         }
 
-                        size_t ann_size = 0;
-                        qcc::String* names = NULL;
-                        qcc::String* values = NULL;
-                        members[i]->GetAllAnnotations(&names, &values, ann_size);
-                        for (size_t ann = 0; ann < ann_size; ++ann) {
+                        const size_t numAnnotations = members[i]->GetAnnotations();
+                        qcc::String* names = new qcc::String[numAnnotations];
+                        qcc::String* values = new qcc::String[numAnnotations];
+                        members[i]->GetAnnotations(names, values, numAnnotations);
+
+                        for (size_t ann = 0; ann < numAnnotations; ++ann) {
                             NPVariant annotation;
                             STRINGZ_TO_NPVARIANT(values[ann].c_str(), annotation);
                             if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(method), NPN_GetStringIdentifier(names[ann].c_str()), &annotation)) {
@@ -539,11 +540,11 @@ bool _InterfaceDescriptionsHost::getInterfaceDescription(const qcc::String& name
                             goto exit;
                         }
 
-                        size_t ann_size = 0;
-                        qcc::String* names = NULL;
-                        qcc::String* values = NULL;
-                        members[i]->GetAllAnnotations(&names, &values, ann_size);
-                        for (size_t ann = 0; ann < ann_size; ++ann) {
+                        const size_t numAnnotations = members[i]->GetAnnotations();
+                        qcc::String* names = new qcc::String[numAnnotations];
+                        qcc::String* values = new qcc::String[numAnnotations];
+                        members[i]->GetAnnotations(names, values, numAnnotations);
+                        for (size_t ann = 0; ann < numAnnotations; ++ann) {
                             NPVariant annotation;
                             STRINGZ_TO_NPVARIANT(values[ann].c_str(), annotation);
                             if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(signal), NPN_GetStringIdentifier(names[ann].c_str()), &annotation)) {
@@ -611,11 +612,11 @@ bool _InterfaceDescriptionsHost::getInterfaceDescription(const qcc::String& name
                         goto exit;
                     }
 
-                    size_t ann_size = 0;
-                    qcc::String* names = NULL;
-                    qcc::String* values = NULL;
-                    props[i]->GetAllAnnotations(&names, &values, ann_size);
-                    for (size_t ann = 0; ann < ann_size; ++ann) {
+                    const size_t numAnnotations = props[i]->GetAnnotations();
+                    qcc::String* names = new qcc::String[numAnnotations];
+                    qcc::String* values = new qcc::String[numAnnotations];
+                    props[i]->GetAnnotations(names, values, numAnnotations);
+                    for (size_t ann = 0; ann < numAnnotations; ++ann) {
                         NPVariant annotation;
                         STRINGZ_TO_NPVARIANT(values[ann].c_str(), annotation);
                         if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(property), NPN_GetStringIdentifier(names[ann].c_str()), &annotation)) {
