@@ -135,6 +135,8 @@ bool _InterfaceDescriptionsHost::createInterfaceDescription(const qcc::String& n
         goto exit;
     }
 
+    typedef std::map<qcc::String, qcc::String> AnnotationsMap;
+
     VOID_TO_NPVARIANT(method);
     VOID_TO_NPVARIANT(length);
     if (NPN_GetProperty(plugin->npp, interfaceDescriptionNative->objectValue, NPN_GetStringIdentifier("method"), &method) &&
@@ -149,7 +151,7 @@ bool _InterfaceDescriptionsHost::createInterfaceDescription(const qcc::String& n
             if (NPN_GetProperty(plugin->npp, NPVARIANT_TO_OBJECT(method), NPN_GetIntIdentifier(i), &element) &&
                 NPVARIANT_IS_OBJECT(element)) {
                 qcc::String name, signature, returnSignature, argNames;
-                ajn::InterfaceDescription::AnnotationsMap annotations;
+                AnnotationsMap annotations;
 
                 NPIdentifier* properties = 0;
                 uint32_t propertiesCount = 0;
@@ -193,8 +195,11 @@ bool _InterfaceDescriptionsHost::createInterfaceDescription(const qcc::String& n
                                               name.empty() ? 0 : name.c_str(),
                                               signature.empty() ? 0 : signature.c_str(),
                                               returnSignature.empty() ? 0 : returnSignature.c_str(),
-                                              argNames.empty() ? 0 : argNames.c_str(),
-                                              annotations);
+                                              argNames.empty() ? 0 : argNames.c_str());
+
+                for (AnnotationsMap::const_iterator it = annotations.begin(); it != annotations.end(); ++it) {
+                    interface->AddMemberAnnotation(name.c_str(), it->first, it->second);
+                }
             }
             NPN_ReleaseVariantValue(&element);
         }
@@ -219,7 +224,7 @@ bool _InterfaceDescriptionsHost::createInterfaceDescription(const qcc::String& n
             if (NPN_GetProperty(plugin->npp, NPVARIANT_TO_OBJECT(signal), NPN_GetIntIdentifier(i), &element) &&
                 NPVARIANT_IS_OBJECT(element)) {
                 qcc::String name, signature, argNames;
-                ajn::InterfaceDescription::AnnotationsMap annotations;
+                AnnotationsMap annotations;
 
                 NPIdentifier* properties = 0;
                 uint32_t propertiesCount = 0;
@@ -261,8 +266,11 @@ bool _InterfaceDescriptionsHost::createInterfaceDescription(const qcc::String& n
                                               name.empty() ? 0 : name.c_str(),
                                               signature.empty() ? 0 : signature.c_str(),
                                               NULL,
-                                              argNames.empty() ? 0 : argNames.c_str(),
-                                              annotations);
+                                              argNames.empty() ? 0 : argNames.c_str());
+
+                for (AnnotationsMap::const_iterator it = annotations.begin(); it != annotations.end(); ++it) {
+                    interface->AddMemberAnnotation(name.c_str(), it->first, it->second);
+                }
             }
             NPN_ReleaseVariantValue(&element);
         }
@@ -288,7 +296,7 @@ bool _InterfaceDescriptionsHost::createInterfaceDescription(const qcc::String& n
                 NPVARIANT_IS_OBJECT(element)) {
                 qcc::String name, signature;
                 uint8_t accessFlags = 0;
-                ajn::InterfaceDescription::AnnotationsMap annotations;
+                AnnotationsMap annotations;
 
                 NPIdentifier* properties = 0;
                 uint32_t propertiesCount = 0;
@@ -335,7 +343,7 @@ bool _InterfaceDescriptionsHost::createInterfaceDescription(const qcc::String& n
                 status = interface->AddProperty(name.empty() ? 0 : name.c_str(),
                                                 signature.empty() ? 0 : signature.c_str(),
                                                 accessFlags);
-                for (ajn::InterfaceDescription::AnnotationsMap::const_iterator it = annotations.begin();
+                for (AnnotationsMap::const_iterator it = annotations.begin();
                      (ER_OK == status) && (it != annotations.end()); ++it) {
                     status = interface->AddPropertyAnnotation(name, it->first, it->second);
                 }
@@ -472,16 +480,21 @@ bool _InterfaceDescriptionsHost::getInterfaceDescription(const qcc::String& name
                             goto exit;
                         }
 
-                        for (ajn::InterfaceDescription::AnnotationsMap::const_iterator it = members[i]->annotations.begin();
-                             it != members[i]->annotations.end(); ++it) {
+                        size_t ann_size = 0;
+                        qcc::String* names = NULL;
+                        qcc::String* values = NULL;
+                        members[i]->GetAllAnnotations(&names, &values, ann_size);
+                        for (size_t ann = 0; ann < ann_size; ++ann) {
                             NPVariant annotation;
-                            STRINGZ_TO_NPVARIANT(it->second.c_str(), annotation);
-                            if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(method), NPN_GetStringIdentifier(it->first.c_str()), &annotation)) {
+                            STRINGZ_TO_NPVARIANT(values[ann].c_str(), annotation);
+                            if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(method), NPN_GetStringIdentifier(names[ann].c_str()), &annotation)) {
                                 status = ER_FAIL;
                                 QCC_LogError(status, ("NPN_SetProperty failed"));
                                 goto exit;
                             }
                         }
+                        delete [] names;
+                        delete [] values;
 
                         if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(methodArray), NPN_GetIntIdentifier(j++), &method)) {
                             status = ER_FAIL;
@@ -526,16 +539,21 @@ bool _InterfaceDescriptionsHost::getInterfaceDescription(const qcc::String& name
                             goto exit;
                         }
 
-                        for (ajn::InterfaceDescription::AnnotationsMap::const_iterator it = members[i]->annotations.begin();
-                             it != members[i]->annotations.end(); ++it) {
+                        size_t ann_size = 0;
+                        qcc::String* names = NULL;
+                        qcc::String* values = NULL;
+                        members[i]->GetAllAnnotations(&names, &values, ann_size);
+                        for (size_t ann = 0; ann < ann_size; ++ann) {
                             NPVariant annotation;
-                            STRINGZ_TO_NPVARIANT(it->second.c_str(), annotation);
-                            if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(signal), NPN_GetStringIdentifier(it->first.c_str()), &annotation)) {
+                            STRINGZ_TO_NPVARIANT(values[ann].c_str(), annotation);
+                            if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(signal), NPN_GetStringIdentifier(names[ann].c_str()), &annotation)) {
                                 status = ER_FAIL;
                                 QCC_LogError(status, ("NPN_SetProperty failed"));
                                 goto exit;
                             }
                         }
+                        delete [] names;
+                        delete [] values;
 
                         if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(signalArray), NPN_GetIntIdentifier(j++), &signal)) {
                             status = ER_FAIL;
@@ -593,16 +611,21 @@ bool _InterfaceDescriptionsHost::getInterfaceDescription(const qcc::String& name
                         goto exit;
                     }
 
-                    for (ajn::InterfaceDescription::AnnotationsMap::const_iterator it = props[i]->annotations.begin();
-                         it != props[i]->annotations.end(); ++it) {
+                    size_t ann_size = 0;
+                    qcc::String* names = NULL;
+                    qcc::String* values = NULL;
+                    props[i]->GetAllAnnotations(&names, &values, ann_size);
+                    for (size_t ann = 0; ann < ann_size; ++ann) {
                         NPVariant annotation;
-                        STRINGZ_TO_NPVARIANT(it->second.c_str(), annotation);
-                        if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(property), NPN_GetStringIdentifier(it->first.c_str()), &annotation)) {
+                        STRINGZ_TO_NPVARIANT(values[ann].c_str(), annotation);
+                        if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(property), NPN_GetStringIdentifier(names[ann].c_str()), &annotation)) {
                             status = ER_FAIL;
                             QCC_LogError(status, ("NPN_SetProperty failed"));
                             goto exit;
                         }
                     }
+                    delete [] names;
+                    delete [] values;
 
                     if (!NPN_SetProperty(plugin->npp, NPVARIANT_TO_OBJECT(propertyArray), NPN_GetIntIdentifier(j++), &property)) {
                         status = ER_FAIL;
