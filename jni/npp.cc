@@ -127,7 +127,7 @@ int32_t NPP_WriteReady(NPP npp, NPStream* stream)
         timeout.tv_usec = 0;
         int ret = select(streamFd + 1, NULL, &writefds, NULL, &timeout);
         if (-1 != ret) {
-            numReady = FD_ISSET(streamFd, &writefds) ? NP_MAXREADY : 0;
+            numReady = FD_ISSET(streamFd, &writefds) ? 4096 : 0; // TODO 4096 is a tweak from NP_MAXREADY
         } else {
             QCC_LogError(ER_OS_ERROR, ("%d - %s", errno, strerror(errno)));
             numReady = 0;
