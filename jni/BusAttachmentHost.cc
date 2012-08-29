@@ -440,6 +440,7 @@ class SessionPortListener : public ajn::SessionPortListener {
         check.push_back(&cancelEvent);
         std::vector<qcc::Event*> signaled;
         signaled.clear();
+        env->busAttachment->EnableConcurrentCallbacks();
         QStatus status = qcc::Event::Wait(check, signaled);
         assert(ER_OK == status);
         if (ER_OK != status) {
@@ -743,6 +744,7 @@ class BusObjectListener : public _BusObjectListener {
         PluginData::Callback callback(env->plugin, _Get);
         callback->context = new GetContext(env, ifcName, propName, val);
         PluginData::DispatchCallback(callback);
+        env->busAttachment->EnableConcurrentCallbacks();
         qcc::Event::Wait(callback->context->event);
         val = static_cast<GetContext*>(callback->context)->val;
         return callback->context->status;
@@ -778,6 +780,7 @@ class BusObjectListener : public _BusObjectListener {
         PluginData::Callback callback(env->plugin, _Set);
         callback->context = new SetContext(env, ifcName, propName, val);
         PluginData::DispatchCallback(callback);
+        env->busAttachment->EnableConcurrentCallbacks();
         qcc::Event::Wait(callback->context->event);
         return callback->context->status;
     }
@@ -812,6 +815,7 @@ class BusObjectListener : public _BusObjectListener {
         PluginData::Callback callback(env->plugin, _GenerateIntrospection);
         callback->context = new GenerateIntrospectionContext(env, deep, indent, introspection);
         PluginData::DispatchCallback(callback);
+        env->busAttachment->EnableConcurrentCallbacks();
         qcc::Event::Wait(callback->context->event);
         introspection = static_cast<GenerateIntrospectionContext*>(callback->context)->introspection;
         return callback->context->status;
@@ -888,6 +892,7 @@ class AuthListener : public ajn::AuthListener {
         check.push_back(&cancelEvent);
         std::vector<qcc::Event*> signaled;
         signaled.clear();
+        env->busAttachment->EnableConcurrentCallbacks();
         QStatus status = qcc::Event::Wait(check, signaled);
         assert(ER_OK == status);
         if (ER_OK != status) {
@@ -936,6 +941,7 @@ class AuthListener : public ajn::AuthListener {
         check.push_back(&cancelEvent);
         std::vector<qcc::Event*> signaled;
         signaled.clear();
+        env->busAttachment->EnableConcurrentCallbacks();
         QStatus status = qcc::Event::Wait(check, signaled);
         assert(ER_OK == status);
         if (ER_OK != status) {
