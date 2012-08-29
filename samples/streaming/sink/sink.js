@@ -18,13 +18,20 @@ var $ = function(id) {
 };
 
 var video = $('video'),
-    playlist = $('playlist');
+    playlist = $('useSources');
 
-var onPlay = function(url) {
+var onLoad = function(url) {
     video.src = url;
     video.load();
+};
+
+var onPlay = function() {
     video.play();
-}
+};
+
+var onPause = function() {
+    video.pause();
+};
 
 var onPlaylistChanged = function() {
     var i,
@@ -36,9 +43,17 @@ var onPlaylistChanged = function() {
 
     for (i = 0; i < sink.playlist.length; ++i) {
         li = document.createElement('li');
-        li.innerHTML = sink.playlist[i];
+        li.className = 'use';
+
+        span = document.createElement('span');
+        if (i === sink.nowPlaying) {
+            span.className = 'nowplaying';
+        }
+        span.innerHTML = sink.playlist[i];
+        li.appendChild(span);
+
         playlist.appendChild(li);
     }
 };
 
-sink.start(onPlay, onPlaylistChanged);
+sink.start(onLoad, onPlay, onPause, onPlaylistChanged);

@@ -144,6 +144,9 @@ var onSinkChanged = function(props) {
         li.className = 'use';
         
         span = document.createElement('span');
+        if (i === props.NowPlaying) {
+            span.className = 'nowplaying';
+        }
         span.innerHTML = props.Playlist[i];
         li.appendChild(span);
         
@@ -151,6 +154,8 @@ var onSinkChanged = function(props) {
     }
     if (props.Playlist.length > 0) {
         $('play').disabled = false;
+        $('prev').disabled = false;
+        $('next').disabled = false;
     }
 };
 
@@ -204,13 +209,30 @@ var onLostSink = function(name) {
 };
 
 $('play').onclick = function() {
-    try {
     var sink = document.forms['browseSink'].sinkNames.value;
 
-    browser.play('trm.streaming.sink-' + sink);
-    } catch (err) {
-        console.log(err);
+    if ($('play').innerHTML === '&gt;') {
+        browser.play('trm.streaming.sink-' + sink);
+        $('play').innerHTML = '||';
+    } else {
+        browser.pause('trm.streaming.sink-' + sink);
+        $('play').innerHTML = '&gt;';
     }
+    return false;
+};
+
+$('prev').onclick = function() {
+    var sink = document.forms['browseSink'].sinkNames.value;
+
+    browser.previous('trm.streaming.sink-' + sink);
+    $('play').innerHTML = '&gt;';
+    return false;
+};
+$('next').onclick = function() {
+    var sink = document.forms['browseSink'].sinkNames.value;
+
+    browser.next('trm.streaming.sink-' + sink);
+    $('play').innerHTML = '&gt;';
     return false;
 };
 

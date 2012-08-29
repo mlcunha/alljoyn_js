@@ -25,22 +25,18 @@ object.hidden {
     max-height:   0px    !important;
 }
 
-ul {
+ul.use {
     list-style-type: none;
-    padding-left: 0px;
+    padding: 1em;
 }
-ul li {
+ul.use li {
+    display: block;
     border-top: 1px solid;
 }
-ul li:first-child {
+ul.use li:first-child {
     border-top: none;
 }
 
-button {
-    min-width: 2em;
-}
-
-#input {
-    height: 0px;
-    width: 0px;
+span.nowplaying {
+    font-weight: bold;
 }
