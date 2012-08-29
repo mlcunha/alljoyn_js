@@ -14,9 +14,21 @@
     limitations under the License.
 -->
 <html>
+    <!-- <meta name="HandheldFriendly" content="True" /> -->
+    <!-- <meta name='viewport' content='width=device-width; initial-scale=1.0; maximum-scale=1.0;' /> -->
+    <head>
+        <title>Streaming Browser</title>
+        <link href="style.css" rel="stylesheet" type="text/css"></link>
+    </head>
     <body>
-        <video id="video" controls></video>
+        <h1>Sources</h1>
+        <ul id="sources"></ul>
+
+        <h1>Sinks</h1>
+        <ul id="sinks"></ul>
+
         <script type="text/javascript" src="../../alljoyn_init.js"></script> 
-        <script type="text/javascript" src="client.js"></script>
+        <script type="text/javascript" src="../alljoyn.js"></script>
+        <script type="text/javascript" src="browser.js"></script>
     </body>
 </html>

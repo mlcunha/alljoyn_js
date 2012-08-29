@@ -1,5 +1,5 @@
 <!--
- Copyright 2011, Qualcomm Innovation Center, Inc.
+ Copyright 2012, Qualcomm Innovation Center, Inc.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -14,18 +14,19 @@
     limitations under the License.
 -->
 <html>
+    <meta name="HandheldFriendly" content="True" />
+    <meta name='viewport' content='width=device-width; initial-scale=1.0; maximum-scale=1.0;' />
+    <head>
+        <title>Streaming Sink</title>
+        <link href="style.css" rel="stylesheet" type="text/css"></link>
+    </head>
     <body>
-        <script type="text/javascript">
-            handleFiles = function(files) { 
-                window.URL = window.URL || window.webkitURL;
-                console.log(files);
-                url = window.URL.createObjectURL(files[0]);
-                console.log(url);
-            }
-        </script>
-        <input type="file" id="input" accept="video/*" onchange="handleFiles(this.files)"></input>
+        <video id="video" controls></video>
+        <ol id="playlist">
+        </ol>
 
         <script type="text/javascript" src="../../alljoyn_init.js"></script> 
-        <script type="text/javascript" src="server.js"></script>
+        <script type="text/javascript" src="../alljoyn.js"></script>
+        <script type="text/javascript" src="sink.js"></script>
     </body>
 </html>
