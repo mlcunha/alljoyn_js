@@ -1,8 +1,7 @@
+Makefile-based build instructions for AllJoyn JavaScript binding
+----------------------------------------------------------------
 
-APRIL 2012: Makefiles have been added to alljoyn_js.
-----------
-
-This basic Make build works on Ubuntu x86 only. SCons is not used.
+The makefile in this directory works only on Ubuntu x86.
 
 OS=linux, CPU=x86 or CPU=x86-64 are the only configurations supported by this
 Make build.  No attempt is made to support other platforms, as the SCons build
@@ -10,88 +9,49 @@ does.
 
 
 Setup for Make build:
---------------------
+---------------------
+
 You do not need Python, SCons, Doxygen, Uncrustify, etc to use this Make build.
 
-Complete a Make build of the AllJoyn "core", which will build the AllJoyn
-daemon executable and native-code client libraries for the target platform.
-Note the "OS" and "CPU" settings used in the Make command.
+1) Complete a makefile build of the AllJoyn "core", which will build the AllJoyn
+   daemon executable and native-code client libraries for the target platform.
+   Note the "OS" and "CPU" settings used in the Make command.
 
-* For more information, see "alljoyn_core/make-build_instructions.top" and
-* "alljoyn_core/Makefile.top".  When the AllJoyn core build workspace is
-* set up, these files appear as "make-build_instructions.txt" and "Makefile",
-* in the folder ABOVE alljoyn_core.
+* For more information, see "../make-build_instructions.txt" or
+* "alljoyn_core/make-build_instructions.top".
 
-Install Xulrunner SDK.  The alljoyn_js build needs header files from the
-Xulrunner SDK.  No xulrunner binaries are used, only a few of the header files.
-We recommend the same version of xulrunner-sdk for both 32 and 64 bit Ubuntu:
-  http://ftp.mozilla.org/pub/mozilla.org/xulrunner/releases/3.6.27/sdk/xulrunner-3.6.27.en-US.linux-i686.sdk.tar.bz2.
-Download and install the recommended version, and note the full path to the
-"include" folder.
+2) Install Xulrunner (Gecko) SDK.  The alljoyn_js build needs header files from
+   the Xulrunner SDK. We recommend the same version of xulrunner-sdk for both 32
+   and 64 bit Ubuntu:
+   http://ftp.mozilla.org/pub/mozilla.org/xulrunner/releases/3.6.27/sdk/xulrunner-3.6.27.en-US.linux-i686.sdk.tar.bz2.
 
-Install dependencies: packages libgtk2.0-dev, libssl-dev, and xsltproc
-(on Ubuntu).
+3) Install Linux dependencies: packages libgtk2.0-dev, libssl-dev, and xsltproc
+   (on Ubuntu).
 
 
 How to run Make build:
 ---------------------
 
-Once the AllJoyn "core" Make build has been completed, for both VARIANT=debug
-and VARIANT=release, expand alljoyn_js (this source tree) into the same build
-workspace- right alongside the alljoyn_core and common source trees.
+1) Execute make command: 
 
-The top-level folder of the AllJoyn core build workspace should contain:
-  alljoyn_core/
-  alljoyn_js/
-  common/
-  make-build_instructions.txt
-  Makefile
-  ... etc
+   make CPU=x86 OS=linux VARIANT=debug GECKO_BASE=<XulRunner_Install_Dir>
 
-Where alljoyn_js is this source subtree, containing:
-  docs/
-  jni/
-  res/
-  samples/
-  src/
-  test/
-  .classpath
-  .project
-  AndroidManifest.xml
-  ...
-  make-build_instructions.txt
-  make-example-setenv.sh
-  Makefile
-  ... etc
-
-
-cd alljoyn_js                   # this source tree
-
-cp make-example-setenv.sh setenv.sh  # create a local copy
-
-vi setenv.sh                    # edit local copy as follows:
-  # Set GECKO_BASE = full path to xulrunner SDK, just above the "include" folder.
-  # Set OS and CPU to the same settings used for the AllJoyn "core" Make build.
-  # Set VARIANT=release for "production" binaries
-
-source setenv.sh                # set the env variables (make Macros)
-
-make                            # builds the VARIANT defined in setenv.sh
-
-make VARIANT=debug              # optional, for "debug" binaries
+   where <XulRunner_Install_Dir> is the directory where you installed the Gecko SDK in step 2 above.
 
 
 Browser Plugin file:
 -------------------
+
 A successful build will produce a browser plug-in file named libnpalljoyn.so.
 This file needs to be copied into ~/.mozilla/plugins before starting the browser.
 
-The libnpalljoyn.so plugin file may contain a run-time reference to liballjoyn.so,
-the AllJoyn shared library produced by the AllJoyn "core" build.
-You can find out if it does by running
-  ldd libnpalljoyn.so
-and looking for any reference to liballjoyn.so.
-If a reference to liballjoyn.so exists, then you will need to copy liballjoyn.so
-into ~/.mozilla/plugins, alongside libnpalljoyn.so.
-If no reference to liballjoyn.so was found, you do not need to install liballjoyn.so
-with the plugin.
+
+NOTE: The libnpalljoyn.so plugin file may contain a run-time reference to liballjoyn.so,
+      the AllJoyn shared library produced by the AllJoyn "core" build.
+      You can find out if it does by running
+          ldd libnpalljoyn.so
+      and looking for any reference to liballjoyn.so.
+      If a reference to liballjoyn.so exists, then you will need to copy liballjoyn.so
+      into ~/.mozilla/plugins, alongside libnpalljoyn.so.
+      If no reference to liballjoyn.so was found, you do not need to install liballjoyn.so
+      with the plugin.

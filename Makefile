@@ -106,11 +106,13 @@ INCLUDE = -I$(PWD)/../common/inc -I$(PWD)/../alljoyn_core/inc -I$(PWD)/../alljoy
 
 # Platform specifics system libs
 ifeq "$(OS)" "linux"
-    LIBS += -lrt -lstdc++ -lpthread -lcrypto
+    LIBS += -lrt -lstdc++ -lpthread -lcrypto -lssl
 endif
 
 INSTALLDIR = $(PWD)/../build/$(OS)/$(CPU)/$(VARIANT)
 ALLJOYNLIB = $(INSTALLDIR)/dist/lib/liballjoyn.a
+AJDAEMONLIB = $(INSTALLDIR)/dist/lib/libajdaemon.a
+BUNDLED_OBJ = $(INSTALLDIR)/dist/lib/BundledDaemon.o
 COMMONDIR = $(PWD)/../common
 
 INCLUDE += -L$(INSTALLDIR)/dist/lib
