@@ -182,7 +182,7 @@ int16_t NPP_HandleEvent(NPP npp, void* evt)
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
 #if defined(QCC_OS_ANDROID)
-    static const char *eventTypeStr[] = {
+    static const char* eventTypeStr[] = {
         "kNull_ANPEventType",
         "kKey_ANPEventType",
         "kMouse_ANPEventType",
@@ -203,12 +203,13 @@ int16_t NPP_HandleEvent(NPP npp, void* evt)
         "kOnScreen_ANPLifecycleAction",
         "kOffScreen_ANPLifecycleAction"
     };
-    struct ANPEvent *event = (struct ANPEvent*)evt;
+    struct ANPEvent* event = (struct ANPEvent*)evt;
     switch (event->eventType) {
     case kLifecycle_ANPEventType:
         QCC_DbgTrace(("event={inSize=%u,eventType=%s,lifecycle={action=%s}}", event->inSize, eventTypeStr[event->eventType],
                       actionStr[event->data.lifecycle.action]));
         break;
+
     default:
         QCC_DbgTrace(("event={inSize=%u,eventType=%s}", event->inSize, eventTypeStr[event->eventType]));
         break;
