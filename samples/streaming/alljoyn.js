@@ -51,14 +51,15 @@ var source = (function() {
 
     var bus,
         sessionId = -1,
-        sources = {};
+        sources = {},
+        callbacks = {};
 
     var start = function() {
         var status,
             name;
 
         bus = new org.alljoyn.bus.BusAttachment(true);
-        console.log(bus.globalGUIDString);
+        callbacks.onStart && callbacks.onStart(bus.globalGUIDString);
         addInterfaces(bus);
         bus[OBJECT_PATH] = {
             'trm.streaming.Source' : {
@@ -153,7 +154,10 @@ var source = (function() {
 
     var that = {};
 
-    that.start = function() {
+    that.start = function(onStart) {
+        callbacks = {
+            onStart: onStart
+        };
         navigator.requestPermission('org.alljoyn.bus', function() { start(); });
     };
     that.addSource = addSource;
@@ -211,7 +215,7 @@ var sink = (function() {
             name;
 
         bus = new org.alljoyn.bus.BusAttachment(true);
-        console.log(bus.globalGUIDString);
+        callbacks.onStart && callbacks.onStart(bus.globalGUIDString);
         addInterfaces(bus);
         bus.registerBusListener({
             onNameOwnerChanged: function(name, previousOwner, newOwner) {
@@ -324,8 +328,9 @@ var sink = (function() {
         get nowPlaying() { return nowPlaying; }
     };
 
-    that.start = function(onLoad, onPlay, onPause, onPlaylistChanged) {
+    that.start = function(onStart, onLoad, onPlay, onPause, onPlaylistChanged) {
         callbacks = {
+            onStart: onStart,
             onLoad: onLoad,
             onPlay: onPlay,
             onPause: onPause,

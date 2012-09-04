@@ -40,6 +40,10 @@ tabHostButton.onclick = function() {
     return false;
 };
 
+var onStart = function(guid) {
+    $('guid').innerHTML = guid;
+};
+
 var onSourceChanged = function(props) {
     var li,
         button,
@@ -290,5 +294,5 @@ $('input').onchange = function() {
 /* The initial state of the page. */
 tabUseButton.onclick();
 
-source.start();
+source.start(onStart);
 browser.start(onFoundSource, onLostSource, onFoundSink, onLostSink);

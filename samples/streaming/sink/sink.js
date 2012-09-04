@@ -20,6 +20,10 @@ var $ = function(id) {
 var video = $('video'),
     playlist = $('useSources');
 
+var onStart = function(guid) {
+    $('guid').innerHTML = guid;
+};
+
 var onLoad = function(url) {
     video.src = url;
     video.load();
@@ -56,4 +60,4 @@ var onPlaylistChanged = function() {
     }
 };
 
-sink.start(onLoad, onPlay, onPause, onPlaylistChanged);
+sink.start(onStart, onLoad, onPlay, onPause, onPlaylistChanged);
