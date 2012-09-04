@@ -178,9 +178,42 @@ void NPP_Print(NPP npp, NPPrint* platformPrint)
     }
 }
 
-int16_t NPP_HandleEvent(NPP npp, void* event)
+int16_t NPP_HandleEvent(NPP npp, void* evt)
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
+#if defined(QCC_OS_ANDROID)
+    static const char *eventTypeStr[] = {
+        "kNull_ANPEventType",
+        "kKey_ANPEventType",
+        "kMouse_ANPEventType",
+        "kTouch_ANPEventType",
+        "kDraw_ANPEventType",
+        "kLifecycle_ANPEventType",
+        "kCustom_ANPEventType"
+    };
+    static const char* actionStr[] = {
+        "kPause_ANPLifecycleAction",
+        "kResume_ANPLifecycleAction",
+        "kGainFocus_ANPLifecycleAction",
+        "kLoseFocus_ANPLifecycleAction",
+        "kFreeMemory_ANPLifecycleAction",
+        "kOnLoad_ANPLifecycleAction",
+        "kEnterFullScreen_ANPLifecycleAction",
+        "kExitFullScreen_ANPLifecycleAction",
+        "kOnScreen_ANPLifecycleAction",
+        "kOffScreen_ANPLifecycleAction"
+    };
+    struct ANPEvent *event = (struct ANPEvent*)evt;
+    switch (event->eventType) {
+    case kLifecycle_ANPEventType:
+        QCC_DbgTrace(("event={inSize=%u,eventType=%s,lifecycle={action=%s}}", event->inSize, eventTypeStr[event->eventType],
+                      actionStr[event->data.lifecycle.action]));
+        break;
+    default:
+        QCC_DbgTrace(("event={inSize=%u,eventType=%s}", event->inSize, eventTypeStr[event->eventType]));
+        break;
+    }
+#endif
     if (!npp) {
         return 0;
     }
