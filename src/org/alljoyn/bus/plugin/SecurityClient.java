@@ -33,6 +33,7 @@ import android.widget.CheckBox;
 import android.widget.TextView;
 
 public class SecurityClient {
+    private static final String TAG = "ALLJOYN_JS";
 
     private Context mContext;
     private ISecurityService mService = null;
@@ -120,6 +121,7 @@ public class SecurityClient {
         int status = mService.aliasUnixUser();
         mContext.unbindService(mConnection);
         if (status != 0) {
+            Log.e(TAG, "SecurityClient.aliasUnixUser failed (" + status + ")");
             throw new SecurityException();
         }
     }

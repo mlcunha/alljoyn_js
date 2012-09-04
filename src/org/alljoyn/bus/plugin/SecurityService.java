@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class SecurityService extends Service {
+    private static final String TAG = "ALLJOYN_JS";
 
     public static final int USER_ALLOWED = 2;
     public static final int DEFAULT_ALLOWED = 1;
@@ -82,24 +83,26 @@ public class SecurityService extends Service {
                  * Check that the caller is trusted.  Trusted in this case means a browser
                  * application that is signed by a trusted author.
                  */
-                Context context = SecurityService.this;
-                PackageManager pm = context.getPackageManager();
-                for (String name : pm.getPackagesForUid(uid)) {
-                    try {
-                        Signature trustedSignature = trustedCallers.get(name);
-                        if (trustedSignature != null) {
-                            PackageInfo info = pm.getPackageInfo(name, PackageManager.GET_SIGNATURES);
-                            for (Signature packageSignature : info.signatures) {
-                                if (trustedSignature.equals(packageSignature)) {
-                                    return SecurityService.this.aliasUnixUser(uid);
-                                }
-                            }
-                        }
-                    } catch (NameNotFoundException e) {
-                        /* Nothing to do */
-                    }
-                }
-                return 1;
+                return SecurityService.this.aliasUnixUser(uid); /* TODO trusted caller check disabled */
+                // Context context = SecurityService.this;
+                // PackageManager pm = context.getPackageManager();
+                // for (String name : pm.getPackagesForUid(uid)) {
+                //     try {
+                //         Signature trustedSignature = trustedCallers.get(name);
+                //         if (trustedSignature != null) {
+                //             PackageInfo info = pm.getPackageInfo(name, PackageManager.GET_SIGNATURES);
+                //             for (Signature packageSignature : info.signatures) {
+                //                 if (trustedSignature.equals(packageSignature)) {
+                //                     return SecurityService.this.aliasUnixUser(uid);
+                //                 }
+                //             }
+                //         }
+                //     } catch (NameNotFoundException e) {
+                //         /* Nothing to do */
+                //     }
+                // }
+                // Log.e(TAG, "SecurityService.aliasUnixUser failed, untrusted caller");
+                // return 1;
             }
 
             public byte[] getKeys(String origin) {
