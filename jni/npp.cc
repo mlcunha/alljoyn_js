@@ -111,27 +111,21 @@ int32_t NPP_WriteReady(NPP npp, NPStream* stream)
 #if defined(QCC_OS_GROUP_WINDOWS)
     return NP_MAXREADY;
 #else
-    /*
-     * TODO Chrome doesn't correctly support returning 0.
-     */
+    /* TODO Chrome doesn't correctly support returning 0. */
     int32_t numReady;
-    if (strstr(NPN_UserAgent(npp), "Chrome")) {
-        numReady = NP_MAXREADY;
+    qcc::SocketFd streamFd = reinterpret_cast<intptr_t>(stream->notifyData);
+    fd_set writefds;
+    FD_ZERO(&writefds);
+    FD_SET(streamFd, &writefds);
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 0;
+    int ret = select(streamFd + 1, NULL, &writefds, NULL, &timeout);
+    if (-1 != ret) {
+        numReady = FD_ISSET(streamFd, &writefds) ? 4096 : 0; // TODO 4096 is a tweak from NP_MAXREADY
     } else {
-        qcc::SocketFd streamFd = reinterpret_cast<intptr_t>(stream->notifyData);
-        fd_set writefds;
-        FD_ZERO(&writefds);
-        FD_SET(streamFd, &writefds);
-        struct timeval timeout;
-        timeout.tv_sec = 0;
-        timeout.tv_usec = 0;
-        int ret = select(streamFd + 1, NULL, &writefds, NULL, &timeout);
-        if (-1 != ret) {
-            numReady = FD_ISSET(streamFd, &writefds) ? 4096 : 0; // TODO 4096 is a tweak from NP_MAXREADY
-        } else {
-            QCC_LogError(ER_OS_ERROR, ("%d - %s", errno, strerror(errno)));
-            numReady = 0;
-        }
+        QCC_LogError(ER_OS_ERROR, ("%d - %s", errno, strerror(errno)));
+        numReady = 0;
     }
     QCC_DbgTrace(("%s()=%d", __FUNCTION__, numReady));
     return numReady;
@@ -162,15 +156,7 @@ int32_t NPP_Write(NPP npp, NPStream* stream, int32_t offset, int32_t len, void* 
         QCC_LogError(ER_OS_ERROR, ("%d - %s", errno, strerror(errno)));
         numSent = -1;
     }
-    /*
-     * TODO Chrome doesn't correctly support returning 0.
-     */
-    if ((-1 != numSent) && strstr(NPN_UserAgent(npp), "Chrome")) {
-        if (numSent != len) {
-            QCC_LogError(ER_OK, ("Dropping %d bytes", len - numSent));
-        }
-        numSent = NP_MAXREADY;
-    }
+    /* TODO Chrome doesn't correctly support returning 0. */
     QCC_DbgTrace(("%s()=%d", __FUNCTION__, numSent));
     return numSent;
 #endif
