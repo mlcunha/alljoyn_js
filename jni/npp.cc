@@ -24,6 +24,9 @@
 
 #define QCC_MODULE "ALLJOYN_JS"
 
+#define MAXREADY (64 * 1024)
+#define DATA_DELIVERY_DELAY_MS 10 /* Android-only */
+
 NPError NPP_New(NPMIMEType pluginType, NPP npp, uint16_t mode, int16_t argc, char* argn[], char* argv[], NPSavedData* saved)
 {
     QCC_DbgTrace(("%s(pluginType=%s,npp=%p,mode=%u,argc=%d,argn=%p,argv=%p,saved=%p)", __FUNCTION__,
@@ -104,10 +107,11 @@ NPError NPP_DestroyStream(NPP npp, NPStream* stream, NPReason reason)
 
 int32_t NPP_WriteReady(NPP npp, NPStream* stream)
 {
-    QCC_DbgTrace(("%s(npp=%p,stream={url=%s,notifyData=%p})", __FUNCTION__, npp, stream->url, stream->notifyData));
+    //QCC_DbgTrace(("%s(npp=%p,stream={url=%s,notifyData=%p})", __FUNCTION__, npp, stream->url, stream->notifyData));
     if (!npp) {
         return NPERR_INVALID_INSTANCE_ERROR;
     }
+
 #if defined(QCC_OS_GROUP_WINDOWS)
     return NP_MAXREADY;
 #else
@@ -122,12 +126,12 @@ int32_t NPP_WriteReady(NPP npp, NPStream* stream)
     timeout.tv_usec = 0;
     int ret = select(streamFd + 1, NULL, &writefds, NULL, &timeout);
     if (-1 != ret) {
-        numReady = FD_ISSET(streamFd, &writefds) ? 4096 : 0; // TODO 4096 is a tweak from NP_MAXREADY
+        numReady = FD_ISSET(streamFd, &writefds) ? MAXREADY : 0;
     } else {
         QCC_LogError(ER_OS_ERROR, ("%d - %s", errno, strerror(errno)));
         numReady = 0;
     }
-    QCC_DbgTrace(("%s()=%d", __FUNCTION__, numReady));
+    //QCC_DbgTrace(("%s()=%d", __FUNCTION__, numReady));
     return numReady;
 #endif
 }
@@ -138,6 +142,7 @@ int32_t NPP_Write(NPP npp, NPStream* stream, int32_t offset, int32_t len, void* 
     if (!npp) {
         return NPERR_INVALID_INSTANCE_ERROR;
     }
+
 #if defined(QCC_OS_GROUP_WINDOWS)
     return NP_MAXREADY;
 #else
@@ -312,7 +317,7 @@ NPError NPP_GetValue(NPP npp, NPPVariable var, void* value)
 
 #if defined(QCC_OS_ANDROID)
     case NPPDataDeliveryDelayMs:
-        QCC_DbgTrace(("%s(variable=%s)", __FUNCTION__, "NPPDataDeliveryDelayMs"));
+        //QCC_DbgTrace(("%s(variable=%s)", __FUNCTION__, "NPPDataDeliveryDelayMs"));
         break;
 #endif
 
@@ -346,9 +351,10 @@ NPError NPP_GetValue(NPP npp, NPPVariable var, void* value)
     }
 
 #if defined(QCC_OS_ANDROID)
-    case NPPDataDeliveryDelayMs:
-        *((int*)value) = 100;   // TODO
+    case NPPDataDeliveryDelayMs: {
+        *((int*)value) = DATA_DELIVERY_DELAY_MS;
         break;
+    }
 #endif
 
     default:
