@@ -39,6 +39,8 @@ std::map<qcc::String, int32_t>& _SessionOptsInterface::Constants()
         CONSTANT("TRANSPORT_WLAN",      0x0004);
         CONSTANT("TRANSPORT_WWAN",      0x0008);
         CONSTANT("TRANSPORT_LAN",       0x0010);
+        CONSTANT("TRANSPORT_ICE",       0x0020);
+        CONSTANT("TRANSPORT_PROXIMITY", 0x0040);
     }
     return constants;
 }
