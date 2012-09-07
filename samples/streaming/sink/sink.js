@@ -58,6 +58,12 @@ var onPlaylistChanged = function() {
 
         playlist.appendChild(li);
     }
+
+    if (sink.nowPlaying === -1) {
+        video.pause();
+    }
 };
 
-sink.start(onStart, onLoad, onPlay, onPause, onPlaylistChanged);
+navigator.requestPermission('org.alljoyn.bus', function() { 
+    sink.start(onStart, onLoad, onPlay, onPause, onPlaylistChanged);
+});

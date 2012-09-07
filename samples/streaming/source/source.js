@@ -294,5 +294,7 @@ $('input').onchange = function() {
 /* The initial state of the page. */
 tabUseButton.onclick();
 
-source.start(onStart);
-browser.start(onFoundSource, onLostSource, onFoundSink, onLostSink);
+navigator.requestPermission('org.alljoyn.bus', function() { 
+    source.start(onStart);
+    browser.start(onFoundSource, onLostSource, onFoundSink, onLostSink);
+});

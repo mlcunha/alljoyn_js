@@ -54,9 +54,13 @@ var source = (function() {
         sources = {},
         callbacks = {};
 
-    var start = function() {
+    var start = function(onStart) {
         var status,
             name;
+
+        callbacks = {
+            onStart: onStart
+        };
 
         bus = new org.alljoyn.bus.BusAttachment(true);
         callbacks.onStart && callbacks.onStart(bus.globalGUIDString);
@@ -152,16 +156,11 @@ var source = (function() {
         bus[OBJECT_PATH]['trm.streaming.Source'].PropertiesChanged('trm.streaming.Source', {}, ['Streams'], { sessionId: sessionId });
     };
 
-    var that = {};
-
-    that.start = function(onStart) {
-        callbacks = {
-            onStart: onStart
-        };
-        navigator.requestPermission('org.alljoyn.bus', function() { start(); });
+    var that = {
+        start: start,
+        addSource: addSource,
+        removeSource: removeSource
     };
-    that.addSource = addSource;
-    that.removeSource = removeSource;
 
     return that;
 })();
@@ -176,6 +175,16 @@ var sink = (function() {
         playlist = [],
         nowPlaying = -1,
         callbacks = {};
+
+    var log = function(prefix) {
+        var msg = prefix;
+        msg += ': playlist=[';
+        for (var i = 0; i < playlist.length; ++i) {
+            msg += '{ fname: ' + playlist[i].fname + ', name: ' + playlist[i].name + ', port: ' + playlist[i].port + ' },';
+        }
+        msg += '],nowPlaying=' + nowPlaying;
+        console.log(msg);
+    };
 
     var getPlaylist = function() {
         var pl = [],
@@ -210,9 +219,17 @@ var sink = (function() {
         }
     };
 
-    var start = function() {
+    var start = function(onStart, onLoad, onPlay, onPause, onPlaylistChanged) {
         var status,
             name;
+
+        callbacks = {
+            onStart: onStart,
+            onLoad: onLoad,
+            onPlay: onPlay,
+            onPause: onPause,
+            onPlaylistChanged: onPlaylistChanged
+        };
 
         bus = new org.alljoyn.bus.BusAttachment(true);
         callbacks.onStart && callbacks.onStart(bus.globalGUIDString);
@@ -226,16 +243,18 @@ var sink = (function() {
                 for (i = 0; i < playlist.length; ) {
                     if (previousOwner && !newOwner && playlist[i].name === name) {
                         playlist.splice(i, 1);
+                        if (i < nowPlaying) {
+                            --nowPlaying;
+                        } else if (i === nowPlaying) {
+                            nowPlaying = -1;
+                        }
                     } else {
                         ++i;
                     }
                 }
                 if (playlist.length !== n) {
-                    bus[OBJECT_PATH]['trm.streaming.Sink'].PropertiesChanged('trm.streaming.Sink', {}, ['Playlist'], { sessionId: sessionId });
-                    if (playlist.length === 0) {
-                        nowPlaying = -1;
-                        bus[OBJECT_PATH]['trm.streaming.Sink'].PropertiesChanged('trm.streaming.Sink', {}, ['NowPlaying'], { sessionId: sessionId });
-                    }
+                    bus[OBJECT_PATH]['trm.streaming.Sink'].PropertiesChanged('trm.streaming.Sink', {}, ['Playlist', 'NowPlaying'], { sessionId: sessionId });
+                    log('onNameOwnerChanged');
                     callbacks.onPlaylistChanged && onPlaylistChanged();
                 }
             }
@@ -254,6 +273,7 @@ var sink = (function() {
                         nowPlaying = 0;
                         load();
                     }
+                    log('Push');
                     callbacks.onPlaylistChanged && onPlaylistChanged();
                 },
                 Play: function(context) {
@@ -274,6 +294,7 @@ var sink = (function() {
                         if (nowPlaying > 0) {
                             --nowPlaying;
                         }
+                        log('Previous');
                         load();
                     }
                 },
@@ -285,6 +306,7 @@ var sink = (function() {
                         if (nowPlaying < (playlist.length - 1)) {
                             ++nowPlaying;
                         }
+                        log('Next');
                         load();
                     }
                 },
@@ -325,18 +347,8 @@ var sink = (function() {
 
     var that = {
         get playlist() { return getPlaylist(); },
-        get nowPlaying() { return nowPlaying; }
-    };
-
-    that.start = function(onStart, onLoad, onPlay, onPause, onPlaylistChanged) {
-        callbacks = {
-            onStart: onStart,
-            onLoad: onLoad,
-            onPlay: onPlay,
-            onPause: onPause,
-            onPlaylistChanged: onPlaylistChanged
-        };
-        navigator.requestPermission('org.alljoyn.bus', function() { start(); });
+        get nowPlaying() { return nowPlaying; },
+        start: start
     };
 
     return that;
@@ -491,20 +503,18 @@ var browser = (function() {
         proxyObj['trm.streaming.Sink'].Next(function() {}, onError);
     };
 
-    var that = {};
-        
-    that.start = function(onFoundSource, onLostSource, onFoundSink, onLostSink) {
-        navigator.requestPermission('org.alljoyn.bus', function() { start(onFoundSource, onLostSource, onFoundSink, onLostSink); });
+    var that = {
+        start: start,
+        joinSource: joinSource,
+        leaveSource: leaveSource,
+        joinSink: joinSink,
+        leaveSink: leaveSink,
+        push: push,
+        play: play,
+        pause: pause,
+        previous: previous,
+        next: next
     };
-    that.joinSource = joinSource;
-    that.leaveSource = leaveSource;
-    that.joinSink = joinSink;
-    that.leaveSink = leaveSink;
-    that.push = push;
-    that.play = play;
-    that.pause = pause;
-    that.previous = previous;
-    that.next = next;
-
+        
     return that;
 })();
