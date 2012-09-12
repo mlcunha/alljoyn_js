@@ -53,6 +53,10 @@ if env['OS_CONF'] == 'windows':
         env.MergeFlags(['-DWIN64'])
 elif env['OS_CONF'] == 'linux':
     env.ParseConfig('pkg-config gtk+-2.0 --cflags --libs') # TODO
+    # prune down the library size
+    env.MergeFlags('-fvisibility=hidden')
+    env.MergeFlags('-fno-asynchronous-unwind-tables -fno-unwind-tables')
+    env.MergeFlags('-ffunction-sections -fdata-sections -Wl,--gc-sections')
 elif env['OS_CONF'] == 'android':
     env.MergeFlags(['-I$ANDROID_SRC/external/webkit/WebKit/android/plugins'])
 
