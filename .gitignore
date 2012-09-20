@@ -7,3 +7,5 @@ jni/os/*/*.o
 jni/*.so
 *.o
 docs/alljoyn.wxml
+bin
+gen
