@@ -245,18 +245,16 @@ $('add').onclick = function() {
 };
 
 var addSource = function(file) {
-    var url,
-        li,
+    var li,
         button,
         span,
         lis;
 
-    url = window.URL.createObjectURL(file);
-    source.addSource(url, file.name);
+    source.addSource(file);
 
     li = document.createElement('li');
     li.className = 'host';
-    li.setAttribute('url', url);
+    li.setAttribute('name', file.name);
 
     button = document.createElement('button');
     button.innerHTML = '-';
@@ -271,12 +269,12 @@ var addSource = function(file) {
     lis = $('hostSources').getElementsByTagName('li');
     $('hostSources').insertBefore(li, lis.item(lis.length - 1));
 };
+
 var removeSource = function(li) {
     return function() {
-        var url = li.getAttribute('url');
+        var name = li.getAttribute('name');
 
-        source.removeSource(url);
-        window.URL.revokeObjectURL(url);
+        source.removeSource(name);
         $('hostSources').removeChild(li);
     };
 };

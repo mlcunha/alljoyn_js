@@ -71,8 +71,8 @@ var source = (function() {
                     var srcs = [],
                         url;
 
-                    for (url in sources) {
-                        srcs.push([sources[url].name, sources[url].port]);
+                    for (port in sources) {
+                        srcs.push([sources[port].file.name, port]);
                     }
                     return srcs;
                 }
@@ -91,6 +91,10 @@ var source = (function() {
             },
             onJoined: function(port, id, joiner) {
                 sessionId = id;
+				bus.setLinkTimeout(10);
+            },
+            onLost: function(id) {
+                console.log('Lost session id:' + id);
             }
         });
         if (status) {
@@ -111,7 +115,7 @@ var source = (function() {
         }
     };
 
-    var addSource = function(url, name) {
+    var addSource = function(file) {
         var status,
             opts;
 
@@ -119,13 +123,29 @@ var source = (function() {
             traffic: org.alljoyn.bus.SessionOpts.TRAFFIC_RAW_RELIABLE,
             transport: org.alljoyn.bus.SessionOpts.TRANSPORT_WLAN,
             onAccept: function(port, joiner, opts) { 
+                console.log('onAccept port:' + port);
                 return true; 
             },
             onJoined: function(port, id, opts) {
                 var fd;
-                
                 fd = bus.getSessionFd(id);
-                fd.send(url);
+                sources[port].url = window.URL.createObjectURL(sources[port].file);
+                sources[port].id = id;
+                console.log('onJoined sending ' + sources[port].url + ' for name ' + sources[port].file.name + ' port:' + port + ' id:' + id);
+                fd.send(sources[port].url);
+            },
+            onLost: function(id) {
+                console.log('onLost id:' + id);
+                for (port in sources) {
+                    if (sources[port].id === id) {
+                        if (sources[port].url) {
+                            console.log('onLost revoking ' + sources[port].url + ' name:' + sources[port].file.name + ' port:' + port);
+                            window.URL.revokeObjectURL(sources[port].url);
+                            sources[port].url = null;
+                        }
+                        break;
+                    }
+                }
             }
         };        
         status = bus.bindSessionPort(opts);
@@ -134,26 +154,36 @@ var source = (function() {
             return;
         }
 
-        sources[url] = { 
-            name: name,
-            port: opts.port
+        sources[opts.port] = { 
+            url: null,
+            file: file,
+            id: 0
         };
-        console.log('bound ' + url + ' to ' + sources[url].name + ',' + sources[url].port);
+        console.log('bound ' + file.name + ' to ' + opts.port);
         bus[OBJECT_PATH]['trm.streaming.Source'].PropertiesChanged('trm.streaming.Source', {}, ['Streams'], { sessionId: sessionId });
     };
 
-    var removeSource = function(url) {
+    var removeSource = function(name) {
         var status;
 
-        status = bus.unbindSessionPort(sources[url].port);
-        if (status) {
-            alert('Unbind session failed [(' + status + ')]');
-            return;
-        }
+        for (port in sources) {
+            if (sources[port].file.name === name) {
+                status = bus.unbindSessionPort(port);
+                if (status) {
+                    alert('Unbind session failed [(' + status + ')]');
+                    return;
+                }
 
-        console.log('unbound ' + url + ' from ' + sources[url].name + ',' + sources[url].port);
-        delete sources[url];
-        bus[OBJECT_PATH]['trm.streaming.Source'].PropertiesChanged('trm.streaming.Source', {}, ['Streams'], { sessionId: sessionId });
+                console.log('unbound ' + sources[port].file.name + ' from ' + sources[port].url + ',' + port);
+                if (sources[port].url) {
+                    window.URL.revokeObjectURL(sources[port].url);
+                    sources[port].url = null;
+                }
+                delete sources[port];
+                bus[OBJECT_PATH]['trm.streaming.Source'].PropertiesChanged('trm.streaming.Source', {}, ['Streams'], { sessionId: sessionId });
+                break;
+            }
+        }
     };
 
     var that = {
@@ -209,6 +239,7 @@ var sink = (function() {
             bus[OBJECT_PATH]['trm.streaming.Sink'].PropertiesChanged('trm.streaming.Sink', {}, ['NowPlaying'], { sessionId: sessionId });
             callbacks.onPlaylistChanged && onPlaylistChanged();
         };
+
         status = bus.joinSession(onJoined, onError, {
             host: playlist[nowPlaying].name,
             port: playlist[nowPlaying].port,
@@ -239,9 +270,10 @@ var sink = (function() {
                 var i,
                     n;
 
+                console.log('onNameOwnerChanged name:' + name + ' previousOwner:' + previousOwner + ' newOwner:' + newOwner);
                 n = playlist.length;
                 for (i = 0; i < playlist.length; ) {
-                    if (previousOwner && !newOwner && playlist[i].name === name) {
+                    if (previousOwner && !newOwner && playlist[i].mpname === name) {
                         playlist.splice(i, 1);
                         if (i < nowPlaying) {
                             --nowPlaying;
@@ -267,7 +299,7 @@ var sink = (function() {
                     console.log('Push(' + fname + ',' + name + ',' + port + ')');
                     context.reply();
 
-                    playlist.push({ fname: fname, name: name, port: port });
+                    playlist.push({ fname: fname, name: name, port: port, mpname: context.sender });
                     bus[OBJECT_PATH]['trm.streaming.Sink'].PropertiesChanged('trm.streaming.Sink', {}, ['Playlist'], { sessionId: sessionId });
                     if (nowPlaying === -1) {
                         nowPlaying = 0;
@@ -325,6 +357,9 @@ var sink = (function() {
             },
             onJoined: function(port, id, joiner) {
                 sessionId = id;
+            },
+            onMemberRemoved: function(id, name) {
+                console.log('onMemberRemoved: id:' + id + ' name:' + name);
             }
         });
         if (status) {

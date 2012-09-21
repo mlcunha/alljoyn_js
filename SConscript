@@ -54,7 +54,10 @@ if env['OS_CONF'] == 'windows':
 elif env['OS_CONF'] == 'linux':
     env.ParseConfig('pkg-config gtk+-2.0 --cflags --libs') # TODO
 elif env['OS_CONF'] == 'android':
-    env.MergeFlags(['-I$ANDROID_SRC/external/webkit/WebKit/android/plugins'])
+    if  env['ANDROID_API_LEVEL'] >= 14:
+        env.MergeFlags(['-I$ANDROID_SRC/external/webkit/Source/WebKit/android/plugins'])
+    else:
+        env.MergeFlags(['-I$ANDROID_SRC/external/webkit/WebKit/android/plugins'])
 
 # TODO
 # LOCAL_CFLAGS += -fvisibility=hidden
