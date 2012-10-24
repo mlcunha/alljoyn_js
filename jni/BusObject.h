@@ -32,10 +32,10 @@ class _BusObjectListener {
 
 class _BusObject : public ajn::BusObject {
   public:
-    _BusObject(BusAttachment& busAttachment, const char* path)
-        : ajn::BusObject(*busAttachment, path)
-        , busAttachment(busAttachment)
-        , busObjectListener(0) { }
+    _BusObject(BusAttachment& busAttachment, const char* path) :
+        ajn::BusObject(path),
+        busAttachment(busAttachment),
+        busObjectListener(0) { }
     virtual ~_BusObject() { }
     void SetBusObjectListener(_BusObjectListener* busObjectListener) {
         this->busObjectListener = busObjectListener;
