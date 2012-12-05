@@ -81,6 +81,11 @@ AsyncTestCase("InterfaceDescriptionTest", {
                 '      <annotation name="org.test" value="test"/>\n' +
                 '    </property>\n' +
                 '  </interface>\n' +
+                '  <interface name="org.freedesktop.DBus.Introspectable">\n' +
+                '    <method name="Introspect">\n' +
+                '      <arg name="data" type="s" direction="out"/>\n' +
+                '    </method>\n' +
+                '  </interface>\n' +
                 '  <interface name="org.freedesktop.DBus.Properties">\n' +
                 '    <method name="Get">\n' +
                 '      <arg name="interface" type="s" direction="in"/>\n' +
@@ -95,11 +100,6 @@ AsyncTestCase("InterfaceDescriptionTest", {
                 '      <arg name="interface" type="s" direction="in"/>\n' +
                 '      <arg name="propname" type="s" direction="in"/>\n' +
                 '      <arg name="value" type="v" direction="in"/>\n' +
-                '    </method>\n' +
-                '  </interface>\n' +
-                '  <interface name="org.freedesktop.DBus.Introspectable">\n' +
-                '    <method name="Introspect">\n' +
-                '      <arg name="data" type="s" direction="out"/>\n' +
                 '    </method>\n' +
                 '  </interface>\n' +
                 '</node>\n';
