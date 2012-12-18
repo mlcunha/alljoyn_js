@@ -137,7 +137,7 @@ class BusListener : public ajn::BusListener {
          * this call will not occur without a valid BusAttachmentHost.  The same cannot be said of the
          * dispatched callback below (_ListenerRegistered).
          */
-        BusAttachmentHost busAttachmentHost(env->busAttachmentHost);
+        BusAttachmentHost busAttachmentHost = BusAttachmentHost::wrap(env->busAttachmentHost);
         PluginData::Callback callback(env->plugin, _ListenerRegistered);
         callback->context = new ListenerRegisteredContext(env, busAttachmentHost);
         PluginData::DispatchCallback(callback);
@@ -506,7 +506,7 @@ class SessionPortListener : public ajn::SessionPortListener {
          * this call will not occur without a valid BusAttachmentHost.  The same cannot be said of the
          * dispatched callback below (_SessionJoined).
          */
-        BusAttachmentHost busAttachmentHost(env->busAttachmentHost);
+        BusAttachmentHost busAttachmentHost = BusAttachmentHost::wrap(env->busAttachmentHost);
         PluginData::Callback callback(env->plugin, _SessionJoined);
         callback->context = new SessionJoinedContext(env, busAttachmentHost, sessionPort, id, joiner);
         PluginData::DispatchCallback(callback);
@@ -2103,7 +2103,7 @@ bool _BusAttachmentHost::joinSession(const NPVariant* args, uint32_t argCount, N
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
 
-    BusAttachmentHost busAttachmentHost(this);
+    BusAttachmentHost busAttachmentHost = BusAttachmentHost::wrap(this);
     JoinSessionSuccessListenerNative* successListenerNative = 0;
     ErrorListenerNative* errorListenerNative = 0;
     qcc::String sessionHost;

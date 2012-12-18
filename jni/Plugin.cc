@@ -225,7 +225,7 @@ QStatus _Plugin::Origin(qcc::String& origin)
         NPN_GetProperty(npp, window, NPN_GetStringIdentifier("document"), &document) &&
         NPVARIANT_IS_OBJECT(document) &&
         NPN_GetProperty(npp, NPVARIANT_TO_OBJECT(document), NPN_GetStringIdentifier("domain"), &domain)) {
-        Plugin plugin(this);
+        Plugin plugin = Plugin::wrap(this);
         qcc::String protocolString, hostnameString, portString;
         protocolString = ToDOMString(plugin, protocol, typeError) + "//";
         if (typeError) {
