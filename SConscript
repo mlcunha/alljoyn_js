@@ -29,7 +29,8 @@ vars.Update(env)
 Help(vars.GenerateHelpText(env))
 if '' == env.subst('$GECKO_BASE'):
     print 'Missing required build variable GECKO_BASE'
-    Exit()
+    if not GetOption('help'):
+        Exit()
 
 # Dependent Projects
 if not env.has_key('_ALLJOYNCORE_'):
