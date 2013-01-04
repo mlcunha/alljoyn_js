@@ -17,6 +17,13 @@ Import('env')
 
 # Plugin library sources
 srcs = env.Glob('*.cc')
+if '' != env.subst('$GECKO_BASE'):
+    env.MergeFlags(['-I. -Inpapi -I$GECKO_BASE/include'])
+    srcs.append(env.Glob('npapi/*.cc'))
+else:
+    env.MergeFlags(['-I. -Icordova'])
+    srcs.append(env.Glob('cordova/*.cc'))
+    srcs.append(env.Glob('cordova/${OS_CONF}/*.cc'))
 srcs.append(env.Glob('os/${OS_CONF}/*.cc'))
 
 objs = env.SharedObject(srcs)

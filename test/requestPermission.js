@@ -14,13 +14,9 @@
  *    limitations under the License.
  */
 AsyncTestCase('RequestPermission', {
-        setUp: function() {
-            /*:DOC += <object id="alljoyn" type="application/x-alljoyn"/> */
-            alljoyn = document.getElementById("alljoyn");
-        },
-        testRequestPermission: function(queue) {
-            queue.call(function(callbacks) {
-                alljoyn.requestPermission("org.alljoyn.bus", callbacks.add(function() {}));
-            });
-        }
-    });
+    testRequestPermission: function(queue) {
+        queue.call(function(callbacks) {
+            org.alljoyn.bus.requestPermission("org.alljoyn.bus", callbacks.add(function() {}));
+        });
+    }
+});

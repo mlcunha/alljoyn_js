@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Qualcomm Innovation Center, Inc.
+ * Copyright 2011-2012, Qualcomm Innovation Center, Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -22,12 +22,11 @@
 
 class _SignalEmitterHost : public ScriptableObject {
   public:
-    _SignalEmitterHost(Plugin& plugin, BusObject& busObject, const ajn::InterfaceDescription::Member* signal);
+    _SignalEmitterHost(Plugin& plugin, BusObject& busObject);
     virtual ~_SignalEmitterHost();
 
   private:
     BusObject busObject;
-    const ajn::InterfaceDescription::Member* signal;
 
     bool emitSignal(const NPVariant* args, uint32_t argCount, NPVariant* result);
 };

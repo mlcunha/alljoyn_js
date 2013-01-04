@@ -995,6 +995,67 @@ dictionary Credentials {
 callback ErrorListener = void (BusError error);
 
 /**
+ * \brief Function invoked when an HTTP request is received for a URL created via
+ * <em>createObjectURL</em>
+ *
+ * This callback interface is used to provide fine-grained control over the response headers.
+ *
+ * \param request the request.
+ */
+callback HttpListener = void (HttpRequest request);
+
+/**
+ * \brief An HTTP request.
+ *
+ * After examining any request headers of interest with <em>getAllRequestHeaders</em> or
+ * <em>getRequestHeader</em>, set <em>status</em>, <em>statusText</em>, any response headers via
+ * <em>setResponseHeader</em> and call <em>send</em>.
+ */
+[NoInterfaceObject]
+interface HttpRequest {
+    /**
+     * \brief Get all the headers in the HTTP request.
+     *
+     * \return the headers, as a concatenation of all the headers received with CRLF separators.
+     */
+    DOMString getAllRequestHeaders();
+    /**
+     * \brief Get a specific HTTP request header.
+     *
+     * \param header the header requested
+     *
+     * \return the value of the header
+     */
+    DOMString getRequestHeader(DOMString header);
+
+    /**
+     * \brief The HTTP reponse status.
+     *
+     * Defaults to <em>200</em>
+     */
+    attribute int status;
+    /**
+     * \brief The HTTP reponse status text.
+     *
+     * Defaults to <em>'OK'</em>
+     */
+    attribute DOMString statusText;
+    /**
+     * \brief Sets a header of the HTTP response.
+     *
+     * The default response headers are <em>Date: ...</em> and <em>Content-Type:
+     * application/octet-stream</em>.
+     */
+    void setResponseHeader(DOMString header, DOMString value);
+    /**
+     * \brief Sends the HTTP response.
+     *
+     * After the response is sent, data will be sent from the session file descriptor.
+     */
+    void send();
+};
+
+/**
  * \brief Describes the methods, signals and properties of a BusObject or
  * ProxyBusObject.
  */
@@ -1655,13 +1716,13 @@ interface SocketFd {
      *
      * \return the new object URL representing the SocketFd object
      */
-    //static DOMString createObjectURL(in SocketFd fd);
+    static DOMString createObjectURL(SocketFd fd, optional HttpListener listener);
     /*
      * \brief Releases an existing object URL created with <em>createObjectURL</em>.
      *
      * \param url the existing object URL
      */
-    //static void revokeObjectURL(in DOMString url);
+    static void revokeObjectURL(DOMString url);
 
     /**
      * \brief The socket descriptor string.
@@ -1702,10 +1763,8 @@ interface SocketFd {
      * \brief Sends a URL via a SocketFd.
      *
      * \param url the source URL to send
-     *
-     * TODO send events (starting, sending, done, etc)?
      */
-    //void send(DOMString url);
+    void send(DOMString url);
 };
 
 /**

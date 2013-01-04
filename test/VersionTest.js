@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Qualcomm Innovation Center, Inc.
+ * Copyright 2011 - 2013, Qualcomm Innovation Center, Inc.
  * 
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -14,20 +14,17 @@
  *    limitations under the License.
  */
 AsyncTestCase("VersionTest", {
-        setUp: function() {
-            /*:DOC += <object id="alljoyn" type="application/x-alljoyn"/> */
-            alljoyn = document.getElementById("alljoyn");
-        },
+    _setUp: ondeviceready(function(callback) {
+    }),
 
-        testVersion: function() {
-            var v = new alljoyn.Version();
-            console.log("buildInfo: " + v.buildInfo);
-            console.log("version: 0x" + v.version.toString(16));
-            console.log("arch: " + v.arch);
-            console.log("apiLevel: " + v.apiLevel);
-            console.log("release: " + v.release);
-            console.log("toString (explicit): " + v.toString());
-            console.log("toString (implicit): " + v);
-        },
-    });
+    testVersion: function(queue) {
+        var v = org.alljoyn.bus.Version;
+        console.log("buildInfo: " + v.buildInfo);
+        console.log("numericVersion: 0x" + v.numericVersion.toString(16));
+        console.log("arch: " + v.arch);
+        console.log("apiLevel: " + v.apiLevel);
+        console.log("release: " + v.release);
+        console.log("version: " + v.version);
+    },
+});
 

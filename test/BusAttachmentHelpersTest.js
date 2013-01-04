@@ -14,47 +14,112 @@
  *    limitations under the License.
  */
 AsyncTestCase("BusAttachmentHelpersTest", {
-        setUp: function() {
-            /*:DOC += <object id="alljoyn" type="application/x-alljoyn"/> */
-            alljoyn = document.getElementById("alljoyn");
-            bus = new alljoyn.BusAttachment();
-            assertEquals(0, bus.connect());
-        },
-        tearDown: function() {
-            /*
-             * We don't know when the gc will run, so explicitly disconnect to ensure that there is
-             * no interference between tests (particularly signal handlers).
-             */
-            assertEquals(0, bus.disconnect());
-        },
+    _setUp: ondeviceready(function(callback) {
+        bus = new org.alljoyn.bus.BusAttachment();
+        var connect = function(err) {
+            assertUndefined(err)
+            bus.connect(callback);
+        };
+        bus.create(false, connect);
+    }),
+    tearDown: function() {
+        bus.destroy();
+    },
 
-        testRequestReleaseName: function() {
-            assertEquals(0, bus.requestName("org.alljoyn.testName", 0));
-            assertEquals(0, bus.releaseName("org.alljoyn.testName"));
-        },
+    testRequestReleaseName: function(queue) {
+        queue.call(function(callbacks) {
+            var requestName = function(err) {
+                assertUndefined(err)
+                bus.requestName("org.alljoyn.testName", 0, callbacks.add(releaseName));
+            };
+            var releaseName = function(err) {
+                assertUndefined(err)
+                bus.releaseName("org.alljoyn.testName", callbacks.add(done));
+            };
+            var done = function(err) {
+                assertUndefined(err)
+            };
+            this._setUp(callbacks.add(requestName));
+        });
+    },
 
-        testAddRemoveMatch: function() {
-            assertEquals(0, bus.addMatch("type='signal'"));
-            assertEquals(0, bus.removeMatch("type='signal'"));
-        },
+    testAddRemoveMatch: function(queue) {
+        queue.call(function(callbacks) {
+            var addMatch = function(err) {
+                assertUndefined(err)
+                bus.addMatch("type='signal'", callbacks.add(removeMatch));
+            };
+            var removeMatch = function(err) {
+                assertUndefined(err)
+                bus.removeMatch("type='signal'", callbacks.add(done));
+            };
+            var done = function(err) {
+                assertUndefined(err)
+            };
+            this._setUp(callbacks.add(addMatch));
+        });
+    },
 
-        testAdvertiseCancelAdvertiseName: function() {
-            assertEquals(0, bus.advertiseName("org.alljoyn.testName", 0xffff));
-            assertEquals(0, bus.cancelAdvertiseName("org.alljoyn.testName", 0xffff));
-        },
+    testAdvertiseCancelAdvertiseName: function(queue) {
+        queue.call(function(callbacks) {
+            var advertiseName = function(err) {
+                assertUndefined(err)
+                bus.advertiseName("org.alljoyn.testName", 0xffff, callbacks.add(cancelAdvertiseName));
+            };
+            var cancelAdvertiseName = function(err) {
+                assertUndefined(err)
+                bus.cancelAdvertiseName("org.alljoyn.testName", 0xffff, callbacks.add(done));
+            };
+            var done = function(err) {
+                assertUndefined(err)
+            };
+            this._setUp(callbacks.add(advertiseName));
+        });
+    },
 
-        testFindCancelFindAdvertisedName: function() {
-            assertEquals(0, bus.findAdvertisedName("org.alljoyn.testName"));
-            assertEquals(0, bus.cancelFindAdvertisedName("org.alljoyn.testName"));
-        },
+    testFindCancelFindAdvertisedName: function(queue) {
+        queue.call(function(callbacks) {
+            var findAdvertisedName = function(err) {
+                assertUndefined(err)
+                bus.findAdvertisedName("org.alljoyn.testName", callbacks.add(cancelFindAdvertisedName));
+            };
+            var cancelFindAdvertisedName = function(err) {
+                assertUndefined(err)
+                bus.cancelFindAdvertisedName("org.alljoyn.testName", callbacks.add(done));
+            };
+            var done = function(err) {
+                assertUndefined(err)
+            };
+            this._setUp(callbacks.add(findAdvertisedName));
+        });
+    },
 
-        testNameHasOwner: function() {
-            assertTrue(bus.nameHasOwner("org.freedesktop.DBus"));
-        },
+    testNameHasOwner: function(queue) {
+        queue.call(function(callbacks) {
+            var nameHasOwner = function(err) {
+                assertUndefined(err)
+                bus.nameHasOwner("org.freedesktop.DBus", callbacks.add(done));
+            };
+            var done = function(err, hasOwner) {
+                assertUndefined(err)
+                assertTrue(hasOwner);
+            };
+            this._setUp(callbacks.add(nameHasOwner));
+        });
+    },
 
-        testSetDaemonDebug: function() {
+    testSetDaemonDebug: function(queue) {
+        queue.call(function(callbacks) {
             /* Will only succeed if the daemon was built in debug mode */
-            bus.setDaemonDebug("ALL", 15);
-            bus.setDaemonDebug("ALL", 0);
-        },
-    });
+            var set = function(err) {
+                bus.setDaemonDebug("ALL", 15, callbacks.add(clear));
+            };
+            var clear = function(err) {
+                bus.setDaemonDebug("ALL", 0, callbacks.add(done));
+            };
+            var done = function(err) {
+            };
+            this._setUp(callbacks.add(set));
+        });
+    },
+});

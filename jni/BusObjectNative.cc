@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Qualcomm Innovation Center, Inc.
+ * Copyright 2011-2012, Qualcomm Innovation Center, Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -200,10 +200,11 @@ void BusObjectNative::onMessage(const char* interfaceName, const char* methodNam
 
 exit:
     if ((ER_OK != status) && NPN_HasMethod(plugin->npp, NPVARIANT_TO_OBJECT(npargs[0]), NPN_GetStringIdentifier("replyError"))) {
-        NPVariant statusArg;
-        INT32_TO_NPVARIANT(status, statusArg);
+        NPVariant args[2];
+        INT32_TO_NPVARIANT(status, args[0]);
+        VOID_TO_NPVARIANT(args[1]);
         NPVariant ignore = NPVARIANT_VOID;
-        NPN_Invoke(plugin->npp, NPVARIANT_TO_OBJECT(npargs[0]), NPN_GetStringIdentifier("replyError"), &statusArg, 1, &ignore);
+        NPN_Invoke(plugin->npp, NPVARIANT_TO_OBJECT(npargs[0]), NPN_GetStringIdentifier("replyError"), args, 2, &ignore);
         NPN_ReleaseVariantValue(&ignore);
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Qualcomm Innovation Center, Inc.
+ * Copyright 2011-2012, Qualcomm Innovation Center, Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -74,9 +74,9 @@ void PluginData::DispatchCallback(PluginData::Callback& callback)
         if (++nextPendingCallbackKey == 0) {
             ++nextPendingCallbackKey;
         }
-        NPN_PluginThreadAsyncCall(callback->plugin->npp, PluginData::AsyncCall, (void*)callback->key);
         pendingCallbacks.push_back(callback);
         lock.Unlock();
+        NPN_PluginThreadAsyncCall(callback->plugin->npp, PluginData::AsyncCall, (void*)callback->key);
     }
 }
 
@@ -90,9 +90,11 @@ void PluginData::DestroyOnMainThread(Plugin& plugin, PluginData::CallbackContext
         if (++nextPendingCallbackKey == 0) {
             ++nextPendingCallbackKey;
         }
-        NPN_PluginThreadAsyncCall(callback->plugin->npp, PluginData::AsyncCall, (void*)callback->key);
         pendingCallbacks.push_back(callback);
+        lock.Unlock();
+        NPN_PluginThreadAsyncCall(callback->plugin->npp, PluginData::AsyncCall, (void*)callback->key);
     } else {
+        lock.Unlock();
         /*
          * It is not safe to release NPAPI resources from outside the main thread.  So this
          * could lead to a crash if called, or a memory leak if not called.  Prefer the memory
@@ -100,7 +102,6 @@ void PluginData::DestroyOnMainThread(Plugin& plugin, PluginData::CallbackContext
          */
         QCC_LogError(ER_NONE, ("Leaking callback context"));
     }
-    lock.Unlock();
 }
 
 void PluginData::CancelCallback(PluginData::Callback& callback)
@@ -182,19 +183,6 @@ PluginData::~PluginData()
     QCC_DbgTrace(("%s", __FUNCTION__));
     lock.Lock();
     plugin->npp = 0;
-#if defined(QCC_OS_ANDROID)
-    if (plugin->context) {
-        JNIEnv* env;
-        if (JNI_OK == gVM->GetEnv((void** )&env, JNI_VERSION_1_4)) {
-            env->DeleteGlobalRef(plugin->securityClient);
-            plugin->securityClient = 0;
-            env->DeleteGlobalRef(plugin->context);
-            plugin->context = 0;
-        } else {
-            QCC_LogError(ER_FAIL, ("GetEnv failed, leaking global refs"));
-        }
-    }
-#endif
     /*
      * Clear out native object cache as Firefox will delete these regardless of the reference count
      * when destroying the plugin.
@@ -231,7 +219,6 @@ NPObject* PluginData::GetScriptableObject()
 
 Plugin& PluginData::GetPlugin()
 {
-    QCC_DbgTrace(("%s", __FUNCTION__));
     return plugin;
 }
 

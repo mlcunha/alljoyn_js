@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Qualcomm Innovation Center, Inc.
+ * Copyright 2011-2012, Qualcomm Innovation Center, Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -31,12 +31,11 @@ _BusErrorHost::_BusErrorHost(Plugin& plugin, const qcc::String& name, const qcc:
     ATTRIBUTE("name", &_BusErrorHost::getName, 0);
     ATTRIBUTE("message", &_BusErrorHost::getMessage, 0);
     ATTRIBUTE("code", &_BusErrorHost::getCode, 0);
-
-    OPERATION("toString", &_BusErrorHost::toString);
 }
 
 _BusErrorHost::_BusErrorHost(Plugin& plugin, QStatus code)
     : ScriptableObject(plugin, _BusErrorInterface::Constants())
+    , name("BusError")
     , code(code)
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
@@ -44,8 +43,6 @@ _BusErrorHost::_BusErrorHost(Plugin& plugin, QStatus code)
     ATTRIBUTE("name", &_BusErrorHost::getName, 0);
     ATTRIBUTE("message", &_BusErrorHost::getMessage, 0);
     ATTRIBUTE("code", &_BusErrorHost::getCode, 0);
-
-    OPERATION("toString", &_BusErrorHost::toString);
 }
 
 _BusErrorHost::~_BusErrorHost()
@@ -81,12 +78,5 @@ bool _BusErrorHost::getMessage(NPVariant* result)
 bool _BusErrorHost::getCode(NPVariant* result)
 {
     ToUnsignedShort(plugin, code, *result);
-    return true;
-}
-
-bool _BusErrorHost::toString(const NPVariant* args, uint32_t npargCount, NPVariant* result)
-{
-    qcc::String str = "[" + ToString() + "]";
-    ToDOMString(plugin, str, *result);
     return true;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Qualcomm Innovation Center, Inc.
+ * Copyright 2011-2012, Qualcomm Innovation Center, Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -21,40 +21,5 @@
 
 QStatus _BusAttachmentHost::Connect(Plugin& plugin, const char* connectSpec)
 {
-    QCC_DbgTrace(("%s(connectSpec=%s)", __FUNCTION__, connectSpec));
-
-    QStatus status = ER_OK;
-    JNIEnv* env = 0;
-    jint jret;
-    jclass clazz;
-    jmethodID mid;
-
-    jret = gVM->GetEnv((void** )&env, JNI_VERSION_1_4);
-    if (JNI_OK != jret) {
-        status = ER_FAIL;
-        QCC_LogError(status, ("GetEnv failed - %d", jret));
-        goto exit;
-    }
-    clazz = env->GetObjectClass(plugin->securityClient);
-    mid = env->GetMethodID(clazz, "aliasUnixUser", "()V");
-    if (!mid) {
-        status = ER_FAIL;
-        QCC_LogError(status, ("Get SecurityClient.aliasUnixUser failed"));
-        goto exit;
-    }
-    env->CallVoidMethod(plugin->securityClient, mid);
-    if (env->ExceptionCheck()) {
-        status = ER_FAIL;
-        QCC_LogError(status, ("SecurityClient.aliasUnixUser method failed"));
-        goto exit;
-    }
-
-    status = busAttachment->Connect(connectSpec);
-
-exit:
-    if (env && env->ExceptionCheck()) {
-        env->ExceptionDescribe();
-        env->ExceptionClear();
-    }
-    return status;
+    return (*busAttachment)->Connect(connectSpec);
 }

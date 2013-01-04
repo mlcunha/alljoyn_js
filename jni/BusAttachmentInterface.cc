@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Qualcomm Innovation Center, Inc.
+ * Copyright 2011-2012, Qualcomm Innovation Center, Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 #include "BusAttachmentInterface.h"
 
 #include "BusAttachmentHost.h"
+#include "CallbackNative.h"
 #include "FeaturePermissions.h"
 #include "HostObject.h"
 #include "TypeMapping.h"
@@ -55,8 +56,6 @@ bool _BusAttachmentInterface::Construct(const NPVariant* args, uint32_t argCount
     QStatus status = ER_OK;
     bool typeError = false;
     int32_t level = 0;
-    qcc::String applicationName;
-    bool allowRemoteMessages = false;
 
     /*
      * Check permission level first.
@@ -72,22 +71,8 @@ bool _BusAttachmentInterface::Construct(const NPVariant* args, uint32_t argCount
         goto exit;
     }
 
-    status = plugin->Origin(applicationName);
-    if (ER_OK != status) {
-        goto exit;
-    }
-    if (argCount > 0) {
-        allowRemoteMessages = ToBoolean(plugin, args[0], typeError);
-        if (typeError) {
-            plugin->RaiseTypeError("argument 0 is not a boolean");
-            goto exit;
-        }
-    }
-
     {
-        qcc::String name = plugin->ToFilename(applicationName);
-        const char* cname = name.c_str();
-        BusAttachmentHost busAttachmentHost(plugin, cname, allowRemoteMessages);
+        BusAttachmentHost busAttachmentHost(plugin);
         ToHostObject<BusAttachmentHost>(plugin, busAttachmentHost, *result);
     }
 

@@ -1,0 +1,43 @@
+# Copyright 2012, Qualcomm Innovation Center, Inc.
+# 
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+# 
+#        http://www.apache.org/licenses/LICENSE-2.0
+# 
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+# 
+
+Import('env')
+
+if '' != env.subst('$GECKO_BASE'):
+    distdir = '$JS_DISTDIR/samples/%s'
+else:
+    distdir = '$JS_DISTDIR/samples/%s/assets/www'
+
+for sample in ['addressbook/client',
+               'addressbook/service',
+               'chat',
+               'props/client',
+               'props/service',
+               'simple/client',
+               'simple/service',
+               'streaming/sink',
+               'streaming/source']:
+    env.Install(distdir % sample, env.Glob('%s/*' % sample))
+    if '' != env.subst('$GECKO_BASE'):
+        env.Install(distdir % sample, '../js/npapi/alljoyn_init.js');
+    else:
+        env.Install(distdir % sample, '../js/cordova/alljoyn_init.js');
+
+for sample in ['simple/client',
+               'simple/service']:
+    env.Install((distdir + '/js') % sample, 'simple/simple.js')
+for sample in ['streaming/sink',
+               'streaming/source']:
+    env.Install((distdir + '/js') % sample, 'streaming/alljoyn.js')

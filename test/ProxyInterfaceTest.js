@@ -14,44 +14,58 @@
  *    limitations under the License.
  */
 AsyncTestCase("ProxyInterfaceTest", {
-        setUp: function() {
-            /*:DOC += <object id="alljoyn" type="application/x-alljoyn"/> */
-            alljoyn = document.getElementById("alljoyn");
-            bus = new alljoyn.BusAttachment();
-        },
-        tearDown: function() {
-            /*
-             * We don't know when the gc will run, so explicitly disconnect to ensure that there is
-             * no interference between tests (particularly signal handlers).
-             */
-            assertEquals(0, bus.disconnect());
-        },
+    _setUp: ondeviceready(function(callback) {
+        bus = new org.alljoyn.bus.BusAttachment();
+        bus.create(false, callback);
+    }),
+    tearDown: function() {
+        bus.destroy();
+    },
 
-        testEnumerate: function(queue) {
-            queue.call(function(callbacks) {
-                    var proxy = bus.proxy["org.alljoyn.Bus/org/alljoyn/Bus"];
-                    assertEquals(0, bus.connect());
-                    var onIntrospect = callbacks.add(function() {
-                            var actual = {};
-                            for (var name in proxy["org.alljoyn.Bus"]) {
-                                actual[name] = proxy["org.alljoyn.Bus"][name];
-                            }
-                            /*
-                             * Chrome and Firefox both return an Object for the proxy
-                             * interfaces.  Android returns a Function.
-                             */
-                            assertNotNull(actual["BusHello"]);
-                            assertNotNull(actual["Connect"]);
-                            assertNotNull(actual["Disconnect"]);
-                            assertNotNull(actual["StartListen"]);
-                            assertNotNull(actual["StopListen"]);
-                            assertNotNull(actual["AdvertiseName"]);
-                            assertNotNull(actual["CancelAdvertiseName"]);
-                            assertNotNull(actual["FindName"]);
-                            assertNotNull(actual["CancelFindName"]);
-                            assertNotNull(actual["ListAdvertisedNames"]);
-                        });
-                    proxy.introspect(onIntrospect, callbacks.addErrback(onError));
-                });
-        },
-    });
+    testEnumerate: function(queue) {
+        queue.call(function(callbacks) {
+            var getProxyBusObject = function(err) {
+                assertFalsy(err);
+                bus.getProxyBusObject("org.alljoyn.Bus/org/alljoyn/Bus", callbacks.add(connect))
+            };
+            var proxy;
+            var connect = function(err, proxyObj) {
+                assertFalsy(err);
+                proxy = proxyObj;
+                bus.connect(callbacks.add(introspect));
+            };
+            var introspect = function(err) {
+                assertFalsy(err);
+                proxy.introspect(callbacks.add(onIntrospect));
+            };
+            var onIntrospect = function(err) {
+                assertFalsy(err);
+                proxy.getInterface("org.alljoyn.Bus", callbacks.add(done));
+            };
+            var done = function(err, intf) {
+                assertFalsy(err);
+                var actual = {};
+                for (var i = 0; i < intf.method.length; ++i) {
+                    actual[intf.method[i].name] = intf.method[i].name;
+                }
+                /*
+                 * Chrome and Firefox both return an Object for the proxy
+                 * interfaces.  Android returns a Function.
+                 */
+                assertEquals('AdvertiseName', actual['AdvertiseName']);
+                assertEquals('AliasUnixUser', actual['AliasUnixUser']);
+                assertEquals('BindSessionPort', actual['BindSessionPort']);
+                assertEquals('BusHello', actual['BusHello']);
+                assertEquals('CancelAdvertiseName', actual['CancelAdvertiseName']);
+                assertEquals('CancelFindAdvertisedName', actual['CancelFindAdvertisedName']);
+                assertEquals('FindAdvertisedName', actual['FindAdvertisedName']);
+                assertEquals('GetSessionFd', actual['GetSessionFd']);
+                assertEquals('JoinSession', actual['JoinSession']);
+                assertEquals('LeaveSession', actual['LeaveSession']);
+                assertEquals('SetLinkTimeout', actual['SetLinkTimeout']);
+                assertEquals('UnbindSessionPort', actual['UnbindSessionPort']);
+            };
+            this._setUp(callbacks.add(getProxyBusObject));
+        });
+    },
+});

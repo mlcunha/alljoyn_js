@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Qualcomm Innovation Center, Inc.
+ * Copyright 2011-2012, Qualcomm Innovation Center, Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 #include "MessageReplyHost.h"
 
+#include "CallbackNative.h"
 #include "SignatureUtils.h"
 #include "TypeMapping.h"
 #include <qcc/Debug.h>
@@ -43,18 +44,18 @@ bool _MessageReplyHost::reply(const NPVariant* npargs, uint32_t npargCount, NPVa
 
     size_t numArgs;
     const char* begin;
-
     ajn::MsgArg* args = 0;
+    CallbackNative* callbackNative = 0;
     QStatus status = ER_OK;
     bool typeError = false;
 
-    if (npargCount != ajn::SignatureUtils::CountCompleteTypes(replySignature.c_str())) {
+    numArgs = ajn::SignatureUtils::CountCompleteTypes(replySignature.c_str());
+    if (npargCount < numArgs) {
         typeError = true;
         plugin->RaiseTypeError("not enough arguments");
         goto exit;
     }
 
-    numArgs = npargCount;
     args = new ajn::MsgArg[numArgs];
     begin = replySignature.c_str();
     for (size_t i = 0; i < numArgs; ++i) {
@@ -73,6 +74,14 @@ bool _MessageReplyHost::reply(const NPVariant* npargs, uint32_t npargCount, NPVa
         }
         begin = end;
     }
+    if (npargCount > numArgs) {
+        callbackNative = ToNativeObject<CallbackNative>(plugin, npargs[npargCount - 1], typeError);
+        if (typeError) {
+            typeError = true;
+            plugin->RaiseTypeError("argument 1 is not an object");
+            goto exit;
+        }
+    }
 
 #if !defined(NDEBUG)
     {
@@ -83,33 +92,59 @@ bool _MessageReplyHost::reply(const NPVariant* npargs, uint32_t npargCount, NPVa
     status = busObject->MethodReply(message, args, numArgs);
 
 exit:
+    if (!typeError && callbackNative) {
+        CallbackNative::DispatchCallback(plugin, callbackNative, status);
+        callbackNative = 0;
+    }
+    delete callbackNative;
     delete[] args;
-    ToUnsignedShort(plugin, status, *npresult);
+    VOID_TO_NPVARIANT(*npresult);
     return !typeError;
 }
 
+/*
+ * There several   possible replyError method calls
+ *  - replyError( <QStatus> ) : status error
+ *  - replyError( <QStatus>, <callback> ) : status error with callback
+ *  - replyError( <string> ) : error name
+ *  - replyError( <string>, <string> ) : error name and message
+ *  - replyError( <string>, <callback> ) : error name and callback
+ *  - replyError( <string>, <string>, <callback> ) : error name, message, and callback
+ */
 bool _MessageReplyHost::replyError(const NPVariant* npargs, uint32_t npargCount, NPVariant* npresult)
 {
-    QCC_DbgTrace(("%s", __FUNCTION__));
-
+    QCC_DbgTrace(("%s, npargCount : %d", __FUNCTION__, npargCount));
+    CallbackNative* callbackNative = 0;
     QStatus status = ER_OK;
     bool typeError = false;
-
-    if (npargCount == 1 && (NPVARIANT_IS_INT32(npargs[0]) || NPVARIANT_IS_DOUBLE(npargs[0]))) {
+    if (npargCount == 1 && NPVARIANT_IS_STRING(npargs[0])) {
+        qcc::String errorName = ToDOMString(plugin, npargs[0], typeError);
+        if (typeError) {
+            plugin->RaiseTypeError("argument 0 is not a string");
+            goto exit;
+        }
+        status = busObject->MethodReply(message, errorName.c_str(), 0);
+    } else if (npargCount == 2 && (NPVARIANT_IS_INT32(npargs[0]) || NPVARIANT_IS_DOUBLE(npargs[0]))) {
         unsigned short code = ToUnsignedShort(plugin, npargs[0], typeError);
         if (typeError) {
             plugin->RaiseTypeError("argument 0 is not a number");
             goto exit;
         }
         status = busObject->MethodReply(message, static_cast<QStatus>(code));
-    } else if (npargCount > 0 && NPVARIANT_IS_STRING(npargs[0])) {
+        callbackNative = ToNativeObject<CallbackNative>(plugin, npargs[npargCount - 1], typeError);
+        if (typeError) {
+            typeError = true;
+            plugin->RaiseTypeError("argument 1 is not an object");
+            goto exit;
+        }
+    } else if (npargCount > 1 && NPVARIANT_IS_STRING(npargs[0])) {
         qcc::String errorName = ToDOMString(plugin, npargs[0], typeError);
         if (typeError) {
             plugin->RaiseTypeError("argument 0 is not a string");
             goto exit;
         }
         qcc::String errorMessage;
-        if (npargCount > 1) {
+        if (npargCount > 1 && NPVARIANT_IS_STRING(npargs[1])) {
             errorMessage = ToDOMString(plugin, npargs[1], typeError);
             if (typeError) {
                 plugin->RaiseTypeError("argument 1 is not a string");
@@ -117,6 +152,14 @@ bool _MessageReplyHost::replyError(const NPVariant* npargs, uint32_t npargCount,
             }
         }
         status = busObject->MethodReply(message, errorName.c_str(), (npargCount > 1) ? errorMessage.c_str() : 0);
+        if (npargCount > 1 && NPVARIANT_IS_OBJECT(npargs[npargCount - 1])) {
+            callbackNative = ToNativeObject<CallbackNative>(plugin, npargs[npargCount - 1], typeError);
+            if (typeError) {
+                typeError = true;
+                plugin->RaiseTypeError("argument 1 is not an object");
+                goto exit;
+            }
+        }
     } else {
         typeError = true;
         plugin->RaiseTypeError("incorrect argument types");
@@ -124,7 +167,12 @@ bool _MessageReplyHost::replyError(const NPVariant* npargs, uint32_t npargCount,
     }
 
 exit:
-    ToUnsignedShort(plugin, status, *npresult);
+    if (!typeError && callbackNative) {
+        CallbackNative::DispatchCallback(plugin, callbackNative, status);
+        callbackNative = 0;
+    }
+    delete callbackNative;
+    VOID_TO_NPVARIANT(*npresult);
     return !typeError;
 }
 

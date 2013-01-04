@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Qualcomm Innovation Center, Inc.
+ * Copyright 2011-2012, Qualcomm Innovation Center, Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 #include "HttpServer.h"
 
+#include "HttpListenerNative.h"
+#include "PluginData.h"
 #include <qcc/Debug.h>
 #include <qcc/SocketStream.h>
 #include <qcc/StringUtil.h>
@@ -22,6 +24,11 @@
 #include <algorithm>
 
 #define QCC_MODULE "ALLJOYN_JS"
+
+static const uint8_t hex[] = "0123456789ABCDEF";
+
+static const size_t maxData = 8192;
+static const size_t maxHdr = 8;
 
 static void ParseRequest(const qcc::String& line, qcc::String& method, qcc::String& requestUri, qcc::String& httpVersion)
 {
@@ -91,7 +98,7 @@ static QStatus SendNotFoundResponse(qcc::SocketStream& stream)
     return status;
 }
 
-HttpServer::RequestThread::RequestThread(HttpServer* httpServer, qcc::SocketFd requestFd)
+_HttpServer::RequestThread::RequestThread(_HttpServer* httpServer, qcc::SocketFd requestFd)
     : httpServer(httpServer)
     , stream(requestFd)
 {
@@ -99,29 +106,69 @@ HttpServer::RequestThread::RequestThread(HttpServer* httpServer, qcc::SocketFd r
     stream.SetSendTimeout(qcc::Event::WAIT_FOREVER);
 }
 
-qcc::ThreadReturn STDCALL HttpServer::RequestThread::Run(void* arg)
+class OnRequestContext : public PluginData::CallbackContext {
+  public:
+    Plugin plugin;
+    HttpServer httpServer;
+    qcc::String requestUri;
+    Http::Headers requestHeaders;
+    qcc::SocketStream stream;
+    qcc::SocketFd sessionFd;
+    OnRequestContext(Plugin& plugin, _HttpServer* httpServer, qcc::String& requestUri, Http::Headers& requestHeaders, qcc::SocketStream& stream, qcc::SocketFd sessionFd)
+        : plugin(plugin)
+        , httpServer(HttpServer::wrap(httpServer))
+        , requestUri(requestUri)
+        , requestHeaders(requestHeaders)
+        , stream(stream)
+        , sessionFd(sessionFd) { }
+};
+
+static void _OnRequest(PluginData::CallbackContext* ctx)
+{
+    OnRequestContext* context = static_cast<OnRequestContext*>(ctx);
+    HttpListenerNative* httpListener = context->httpServer->GetObjectUrl(context->requestUri).httpListener;
+    if (httpListener) {
+        HttpRequestHost httpRequest(context->plugin, context->httpServer, context->requestHeaders, context->stream, context->sessionFd);
+        httpListener->onRequest(httpRequest);
+    } else {
+        /* Send the default response */
+        uint16_t status = 200;
+        qcc::String statusText = "OK";
+        Http::Headers responseHeaders;
+        responseHeaders["Date"] = qcc::UTCTime();
+        responseHeaders["Content-Type"] = "application/octet-stream";
+        context->httpServer->SendResponse(context->stream, status, statusText, responseHeaders, context->sessionFd);
+    }
+}
+
+qcc::ThreadReturn STDCALL _HttpServer::RequestThread::Run(void* arg)
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
 
     qcc::String line;
-    QStatus status = stream.GetLine(line);
+    QStatus status;
+    qcc::String method, requestUri, httpVersion;
+    qcc::SocketFd sessionFd = qcc::INVALID_SOCKET_FD;
+    Http::Headers requestHeaders;
+    PluginData::Callback callback(httpServer->plugin, _OnRequest);
+
+    status = stream.GetLine(line);
     if (ER_OK != status) {
         SendBadRequestResponse(stream);
-        return 0;
+        goto exit;
     }
 
     QCC_DbgTrace(("[%d] %s", stream.GetSocketFd(), line.c_str()));
-    qcc::String method, requestUri, httpVersion;
     ParseRequest(line, method, requestUri, httpVersion);
     if (method != "GET") {
         SendBadRequestResponse(stream);
-        return 0;
+        goto exit;
     }
 
-    qcc::SocketFd sessionFd = httpServer->GetSessionFd(requestUri);
+    sessionFd = httpServer->GetObjectUrl(requestUri).fd;
     if (qcc::INVALID_SOCKET_FD == sessionFd) {
         SendNotFoundResponse(stream);
-        return 0;
+        goto exit;
     }
 
     /*
@@ -131,88 +178,151 @@ qcc::ThreadReturn STDCALL HttpServer::RequestThread::Run(void* arg)
         line.clear();
         status = stream.GetLine(line);
         if (ER_OK == status) {
+            size_t begin;
+            size_t pos = 0;
+            while ((pos < line.size()) && isspace(line[pos]))
+                ++pos;
+            begin = pos;
+            while ((pos < line.size()) && !isspace(line[pos]) && (':' != line[pos]))
+                ++pos;
+            qcc::String header = line.substr(begin, pos - begin);
+            while ((pos < line.size()) && (isspace(line[pos]) || (':' == line[pos])))
+                ++pos;
+            begin = pos;
+            qcc::String value = line.substr(begin);
             QCC_DbgTrace(("[%d] %s", stream.GetSocketFd(), line.c_str()));
+            if (!header.empty() || !value.empty()) {
+                requestHeaders[header] = value;
+            }
         }
     }
     if (ER_OK != status) {
         SendBadRequestResponse(stream);
-        return 0;
+        goto exit;
     }
 
-    /*
-     * TODO What other headers to send out?  The internet says
-     * - Content-Type - "Content-Type: " + mimeType + "\r\n"
-     * - Server - "Server: AllJoyn HTTP Media Streamer 1.0\r\n"
-     * - and either Content-Length - "Content-Length: " + U32ToString(length) + "\r\n",
-     *              Transfer-Encoding - "Transfer-Encoding: chunked\r\n",
-     *              or Connection - "Connection: close\r\n".
-     */
-    qcc::String response;
-    response = "HTTP/1.1 200 OK\r\n";
-    response += "Date: " + qcc::UTCTime() + "\r\n";
-    response += "Content-type: application/octet-stream\r\n"; // TODO
-    response += "Cache-Control: no-cache\r\n";                // TODO
-    response += "\r\n";
-    status = PushBytes(stream, response.data(), response.size());
-    if (ER_OK != status) {
-        return 0;
-    }
-    QCC_DbgTrace(("[%d] %s", stream.GetSocketFd(), response.c_str()));
+    callback->context = new OnRequestContext(httpServer->plugin, httpServer, requestUri, requestHeaders, stream, sessionFd);
+    PluginData::DispatchCallback(callback);
 
-    /*
-     * Now pump out data.
-     */
-    char* buffer = new char[4096];
-    while (ER_OK == status) {
-        size_t received = 0;
-        status = qcc::Recv(sessionFd, buffer, 4096, received);
-        if (ER_OK == status) {
-            if (0 == received) {
-                status = ER_SOCK_OTHER_END_CLOSED;
-                QCC_LogError(status, ("Recv failed"));
-            } else {
-                status = PushBytes(stream, buffer, received);
-                if (ER_OK != status) {
-                    QCC_LogError(status, ("PushBytes failed"));
-                }
-            }
-        } else if (ER_WOULDBLOCK == status) {
-            qcc::Event recvEvent(sessionFd, qcc::Event::IO_READ, false);
-            status = qcc::Event::Wait(recvEvent);
-            if (ER_OK != status) {
-                QCC_LogError(status, ("Wait failed"));
-            }
-        } else {
-            QCC_LogError(status, ("Recv failed"));
-        }
-    }
-    delete[] buffer;
-
+exit:
     if (ER_OK != status) {
         QCC_LogError(status, ("Request thread exiting"));
     }
     return 0;
 }
 
-HttpServer::HttpServer()
+_HttpServer::ResponseThread::ResponseThread(_HttpServer* httpServer, qcc::SocketStream& stream, uint16_t status, qcc::String& statusText, Http::Headers& responseHeaders, qcc::SocketFd sessionFd)
+    : httpServer(httpServer)
+    , stream(stream)
+    , status(status)
+    , statusText(statusText)
+    , responseHeaders(responseHeaders)
+    , sessionFd(sessionFd)
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
 }
 
-HttpServer::~HttpServer()
+qcc::ThreadReturn STDCALL _HttpServer::ResponseThread::Run(void* arg)
+{
+    QCC_DbgTrace(("%s", __FUNCTION__));
+
+    qcc::String response;
+    QStatus sts;
+    char* buffer = new char[maxHdr + maxData + 2];
+
+    response = "HTTP/1.1 " + qcc::U32ToString(status) + " " + statusText + "\r\n";
+    for (Http::Headers::iterator it = responseHeaders.begin(); it != responseHeaders.end(); ++it) {
+        response += it->first + ": " + it->second + "\r\n";
+    }
+    response += "\r\n";
+    sts = PushBytes(stream, response.data(), response.size());
+    if (ER_OK != sts) {
+        goto exit;
+    }
+    QCC_DbgTrace(("[%d] %s", stream.GetSocketFd(), response.c_str()));
+
+    /*
+     * Now pump out data.
+     */
+    while (ER_OK == sts) {
+        size_t received = 0;
+        char* ptr = &buffer[maxHdr];
+
+        sts = qcc::Recv(sessionFd, ptr, maxData, received);
+        if (ER_OK == sts) {
+            if (0 == received) {
+                if (responseHeaders["Transfer-Encoding"] == "chunked") {
+                    sts = PushBytes(stream, "0\r\n", 3);
+                    if (ER_OK != sts) {
+                        QCC_LogError(sts, ("PushBytes failed"));
+                    }
+                }
+                sts = ER_SOCK_OTHER_END_CLOSED;
+                QCC_LogError(sts, ("Recv failed"));
+            } else {
+                size_t len;
+                if (responseHeaders["Transfer-Encoding"] == "chunked") {
+                    /* Chunk length header is ascii hex followed by cr-lf */
+                    *(--ptr) = '\n';
+                    *(--ptr) = '\r';
+                    len = 2;
+                    size_t n = received;
+                    do {
+                        *(--ptr) = hex[n & 0xF];
+                        n >>= 4;
+                        ++len;
+                    } while (n);
+                    /* Chunk is terminated with cr-lf */
+                    len += received;
+                    ptr[len++] = '\r';
+                    ptr[len++] = '\n';
+                } else {
+                    len = received;
+                }
+                sts = PushBytes(stream, ptr, len);
+                if (ER_OK != sts) {
+                    QCC_LogError(sts, ("PushBytes failed"));
+                }
+            }
+        } else if (ER_WOULDBLOCK == sts) {
+            qcc::Event recvEvent(sessionFd, qcc::Event::IO_READ, false);
+            sts = qcc::Event::Wait(recvEvent);
+            if (ER_OK != sts) {
+                QCC_LogError(sts, ("Wait failed"));
+            }
+        } else {
+            QCC_LogError(sts, ("Recv failed"));
+        }
+    }
+
+exit:
+    delete[] buffer;
+    if (ER_OK != sts) {
+        QCC_LogError(sts, ("Response thread exiting"));
+    }
+    return 0;
+}
+
+_HttpServer::_HttpServer(Plugin& plugin)
+    : plugin(plugin)
+{
+    QCC_DbgTrace(("%s", __FUNCTION__));
+}
+
+_HttpServer::~_HttpServer()
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
 
     lock.Lock();
-    std::vector<RequestThread*>::iterator tit;
-    for (tit = requestThreads.begin(); tit != requestThreads.end(); ++tit) {
+    std::vector<qcc::Thread*>::iterator tit;
+    for (tit = threads.begin(); tit != threads.end(); ++tit) {
         (*tit)->Stop();
     }
     lock.Unlock();
     Stop();
 
     lock.Lock();
-    while (requestThreads.size() > 0) {
+    while (threads.size() > 0) {
         lock.Unlock();
         qcc::Sleep(50);
         lock.Lock();
@@ -220,30 +330,31 @@ HttpServer::~HttpServer()
     lock.Unlock();
     Join();
 
-    std::map<qcc::String, qcc::SocketFd>::iterator sit;
-    for (sit = sessionFds.begin(); sit != sessionFds.end(); ++sit) {
-        QCC_DbgTrace(("Removed %s -> %d", sit->first.c_str(), sit->second));
-        qcc::Close(sit->second);
+    std::map<qcc::String, ObjectUrl>::iterator oit;
+    for (oit = objectUrls.begin(); oit != objectUrls.end(); ++oit) {
+        QCC_DbgTrace(("Removed %s -> %d", oit->first.c_str(), oit->second.fd));
+        qcc::Close(oit->second.fd);
+        delete oit->second.httpListener;
     }
 
     QCC_DbgTrace(("-%s", __FUNCTION__));
 }
 
-void HttpServer::ThreadExit(qcc::Thread* thread)
+void _HttpServer::ThreadExit(qcc::Thread* thread)
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
 
     RequestThread* requestThread = static_cast<RequestThread*>(thread);
     lock.Lock();
-    std::vector<RequestThread*>::iterator it = std::find(requestThreads.begin(), requestThreads.end(), requestThread);
-    if (it != requestThreads.end()) {
-        requestThreads.erase(it);
+    std::vector<qcc::Thread*>::iterator it = std::find(threads.begin(), threads.end(), requestThread);
+    if (it != threads.end()) {
+        threads.erase(it);
     }
     lock.Unlock();
     delete requestThread;
 }
 
-QStatus HttpServer::CreateObjectUrl(qcc::SocketFd fd, qcc::String& url)
+QStatus _HttpServer::CreateObjectUrl(qcc::SocketFd fd, HttpListenerNative* httpListener, qcc::String& url)
 {
     QCC_DbgTrace(("%s(fd=%d)", __FUNCTION__, fd));
 
@@ -264,7 +375,7 @@ QStatus HttpServer::CreateObjectUrl(qcc::SocketFd fd, qcc::String& url)
     requestUri = "/" + qcc::RandHexString(256);
 
     lock.Lock();
-    sessionFds[requestUri] = sessionFd;
+    objectUrls[requestUri] = ObjectUrl(sessionFd, httpListener);
     lock.Unlock();
     QCC_DbgTrace(("Added %s -> %d", requestUri.c_str(), sessionFd));
 
@@ -274,47 +385,37 @@ exit:
     if (ER_OK != status) {
         if (qcc::INVALID_SOCKET_FD != sessionFd) {
             qcc::Close(sessionFd);
+            delete httpListener;
         }
     }
     return status;
 }
 
-void HttpServer::RevokeObjectUrl(const qcc::String& url)
+void _HttpServer::RevokeObjectUrl(const qcc::String& url)
 {
     QCC_DbgTrace(("%s(url=%s)", __FUNCTION__, url.c_str()));
 
     qcc::SocketFd sessionFd = qcc::INVALID_SOCKET_FD;
+    HttpListenerNative* httpListener = 0;
     qcc::String requestUri = url.substr(url.find_last_of('/'));
 
     lock.Lock();
-    std::map<qcc::String, qcc::SocketFd>::iterator it = sessionFds.find(requestUri);
-    if (it != sessionFds.end()) {
-        sessionFd = it->second;
-        sessionFds.erase(it);
+    std::map<qcc::String, ObjectUrl>::iterator it = objectUrls.find(requestUri);
+    if (it != objectUrls.end()) {
+        sessionFd = it->second.fd;
+        httpListener = it->second.httpListener;
+        objectUrls.erase(it);
     }
     lock.Unlock();
     QCC_DbgTrace(("Removed %s -> %d", requestUri.c_str(), sessionFd));
 
     if (qcc::INVALID_SOCKET_FD != sessionFd) {
         qcc::Close(sessionFd);
+        delete httpListener;
     }
 }
 
-qcc::SocketFd HttpServer::GetSessionFd(const qcc::String& requestUri)
-{
-    QCC_DbgTrace(("%s", __FUNCTION__));
-
-    lock.Lock();
-    qcc::SocketFd sessionFd = qcc::INVALID_SOCKET_FD;
-    std::map<qcc::String, qcc::SocketFd>::iterator it = sessionFds.find(requestUri);
-    if (it != sessionFds.end()) {
-        sessionFd = it->second;
-    }
-    lock.Unlock();
-    return sessionFd;
-}
-
-QStatus HttpServer::Start()
+QStatus _HttpServer::Start()
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
 
@@ -372,7 +473,37 @@ exit:
     return status;
 }
 
-qcc::ThreadReturn STDCALL HttpServer::Run(void* arg)
+_HttpServer::ObjectUrl _HttpServer::GetObjectUrl(const qcc::String& requestUri)
+{
+    QCC_DbgTrace(("%s", __FUNCTION__));
+
+    lock.Lock();
+    ObjectUrl objectUrl;
+    std::map<qcc::String, ObjectUrl>::iterator it = objectUrls.find(requestUri);
+    if (it != objectUrls.end()) {
+        objectUrl = it->second;
+    }
+    lock.Unlock();
+    return objectUrl;
+}
+
+void _HttpServer::SendResponse(qcc::SocketStream& stream, uint16_t status, qcc::String& statusText, Http::Headers& responseHeaders, qcc::SocketFd fd)
+{
+    QCC_DbgTrace(("%s", __FUNCTION__));
+
+    ResponseThread* responseThread = new ResponseThread(this, stream, status, statusText, responseHeaders, fd);
+    QStatus sts = responseThread->Start(NULL, this);
+    if (ER_OK == sts) {
+        lock.Lock();
+        threads.push_back(responseThread);
+        lock.Unlock();
+    } else {
+        QCC_LogError(sts, ("Start response thread failed"));
+        delete responseThread;
+    }
+}
+
+qcc::ThreadReturn STDCALL _HttpServer::Run(void* arg)
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
 
@@ -408,7 +539,7 @@ qcc::ThreadReturn STDCALL HttpServer::Run(void* arg)
         status = requestThread->Start(NULL, this);
         if (ER_OK == status) {
             lock.Lock();
-            requestThreads.push_back(requestThread);
+            threads.push_back(requestThread);
             lock.Unlock();
         } else {
             QCC_LogError(status, ("Start request thread failed"));

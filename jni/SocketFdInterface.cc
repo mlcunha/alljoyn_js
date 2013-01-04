@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Qualcomm Innovation Center, Inc.
+ * Copyright 2011-2012, Qualcomm Innovation Center, Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 #include "SocketFdInterface.h"
 
+#include "CallbackNative.h"
+#include "HttpListenerNative.h"
 #include "SocketFdHost.h"
 #include "TypeMapping.h"
 #include <qcc/Debug.h>
@@ -23,12 +25,10 @@
 
 _SocketFdInterface::_SocketFdInterface(Plugin& plugin)
     : ScriptableObject(plugin)
+    , httpServer(plugin)
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
 
-    /*
-     * TODO These are disabled due to browser deficiencies.
-     */
     OPERATION("createObjectURL", &_SocketFdInterface::createObjectURL);
     OPERATION("revokeObjectURL", &_SocketFdInterface::revokeObjectURL);
 }
@@ -97,9 +97,11 @@ bool _SocketFdInterface::createObjectURL(const NPVariant* args, uint32_t argCoun
     QStatus status = ER_OK;
     bool typeError = false;
     SocketFdHost* socketFd = 0;
+    CallbackNative* callbackNative = 0;
+    HttpListenerNative* httpListener = 0;
     qcc::String url;
 
-    if (argCount < 1) {
+    if (argCount < 2) {
         typeError = true;
         plugin->RaiseTypeError("not enough arguments");
         goto exit;
@@ -109,23 +111,35 @@ bool _SocketFdInterface::createObjectURL(const NPVariant* args, uint32_t argCoun
         plugin->RaiseTypeError("argument 0 is not a SocketFd");
         goto exit;
     }
-
-    status = httpServer.CreateObjectUrl((*socketFd)->GetFd(), url);
-    if (ER_OK != status) {
+    if (argCount > 2) {
+        httpListener = ToNativeObject<HttpListenerNative>(plugin, args[1], typeError);
+        if (typeError || !httpListener) {
+            plugin->RaiseTypeError("argument 1 is not an object");
+            goto exit;
+        }
+    }
+    callbackNative = ToNativeObject<CallbackNative>(plugin, args[argCount - 1], typeError);
+    if (typeError || !callbackNative) {
+        typeError = true;
+        plugin->RaiseTypeError("argument 2 is not an object");
         goto exit;
     }
-    QCC_DbgTrace(("url=%s", url.c_str()));
+
+    status = httpServer->CreateObjectUrl((*socketFd)->GetFd(), httpListener, url);
+    if (ER_OK == status) {
+        httpListener = 0; /* httpServer now owns httpListener */
+        QCC_DbgTrace(("url=%s", url.c_str()));
+    }
 
 exit:
-    if ((ER_OK == status) && !typeError) {
-        ToDOMString(plugin, url, *result);
-        return true;
-    } else {
-        if (ER_OK != status) {
-            plugin->RaiseBusError(status);
-        }
-        return false;
+    if (!typeError && callbackNative) {
+        CallbackNative::DispatchCallback(plugin, callbackNative, status, url);
+        callbackNative = 0;
     }
+    delete callbackNative;
+    delete httpListener;
+    VOID_TO_NPVARIANT(*result);
+    return !typeError;
 }
 
 bool _SocketFdInterface::revokeObjectURL(const NPVariant* args, uint32_t argCount, NPVariant* result)
@@ -135,8 +149,9 @@ bool _SocketFdInterface::revokeObjectURL(const NPVariant* args, uint32_t argCoun
     bool typeError = false;
     QStatus status = ER_OK;
     qcc::String url;
+    CallbackNative* callbackNative = 0;
 
-    if (argCount < 1) {
+    if (argCount < 2) {
         typeError = true;
         plugin->RaiseTypeError("not enough arguments");
         goto exit;
@@ -146,18 +161,22 @@ bool _SocketFdInterface::revokeObjectURL(const NPVariant* args, uint32_t argCoun
         plugin->RaiseTypeError("argument 0 is not a string");
         goto exit;
     }
+    callbackNative = ToNativeObject<CallbackNative>(plugin, args[1], typeError);
+    if (typeError || !callbackNative) {
+        typeError = true;
+        plugin->RaiseTypeError("argument 1 is not an object");
+        goto exit;
+    }
     QCC_DbgTrace(("url=%s", url.c_str()));
 
-    httpServer.RevokeObjectUrl(url);
+    httpServer->RevokeObjectUrl(url);
 
 exit:
-    if ((ER_OK == status) && !typeError) {
-        VOID_TO_NPVARIANT(*result);
-        return true;
-    } else {
-        if (ER_OK != status) {
-            plugin->RaiseBusError(status);
-        }
-        return false;
+    if (!typeError && callbackNative) {
+        CallbackNative::DispatchCallback(plugin, callbackNative, status);
+        callbackNative = 0;
     }
+    delete callbackNative;
+    VOID_TO_NPVARIANT(*result);
+    return !typeError;
 }

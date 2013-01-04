@@ -13,42 +13,70 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-TestCase("ProxyBusObjectArgCountTest", {
-        setUp: function() {
-            /*:DOC += <object id="alljoyn" type="application/x-alljoyn"/> */
-            alljoyn = document.getElementById("alljoyn");
-            bus = new alljoyn.BusAttachment();
-        },
-        tearDown: function() {
-            /*
-             * We don't know when the gc will run, so explicitly disconnect to ensure that there is
-             * no interference between tests (particularly signal handlers).
-             */
-            assertEquals(0, bus.disconnect());
-        },
+AsyncTestCase("ProxyBusObjectArgCountTest", {
+    _setUp: ondeviceready(function(callback) {
+        var getProxyObj = function(err) {
+            assertFalsy(err);
+            bus.getProxyBusObject("a.b/c", callback);
+        };
+        bus = new org.alljoyn.bus.BusAttachment();
+        bus.create(false, getProxyObj);
+    }),
+    _wrap: function(queue, f) {
+        queue.call(function(callbacks) {
+            this._setUp(callbacks.add(f));
+        });
+    },
+    tearDown: function() {
+        bus.destroy();
+    },
 
-        testIntrospect0: function() {
-            assertError(function() { bus.proxy["a.b/c"].introspect(); }, "TypeError");
-        },
-        testIntrospect1: function() {
-            assertError(function() { bus.proxy["a.b/c"].introspect(function() {}); }, "TypeError");
-        },
-        testIntrospect2: function() {
-            assertNoError(function() { bus.proxy["a.b/c"].introspect(function() {}, function() {}); }, "TypeError");
-        },
+    testIntrospect0: function(queue) {
+        this._wrap(queue, function(err, proxyObj) {
+            assertError(function() { proxyObj.introspect(); }, "TypeError");
+        });
+    },
+    testIntrospect1: function(queue) {
+        this._wrap(queue, function(err, proxyObj) {
+            assertNoError(function() { proxyObj.introspect(function() {}); }, "TypeError");
+        });
+    },
 
-        testParseXML0: function() {
-            assertError(function() { bus.proxy["a.b/c"].parseXML(); }, "TypeError");
-        },
-        testParseXML1: function() {
-            assertNoError(function() { bus.proxy["a.b/c"].parseXML("xml"); });
-        },
+    testParseXML0: function(queue) {
+        this._wrap(queue, function(err, proxyObj) {
+            assertError(function() { proxyObj.parseXML(); }, "TypeError");
+        });
+    },
+    testParseXML1a: function(queue) {
+        this._wrap(queue, function(err, proxyObj) {
+            assertError(function() { proxyObj.parseXML("xml"); });
+        });
+    },
+    testParseXML1b: function(queue) {
+        this._wrap(queue, function(err, proxyObj) {
+            assertNoError(function() { proxyObj.parseXML("xml", function() {}); });
+        });
+    },
 
-        testSecureConnection0: function() {
-            assertNoError(function() { bus.proxy["a.b/c"].secureConnection(); });
-        },
-        testSecureConnection1: function() {
-            assertNoError(function() { bus.proxy["a.b/c"].secureConnection(true); });
-        },
-    });
+    testSecureConnection0a: function(queue) {
+        this._wrap(queue, function(err, proxyObj) {
+            assertError(function() { proxyObj.secureConnection(); });
+        });
+    },
+    testSecureConnection0b: function(queue) {
+        this._wrap(queue, function(err, proxyObj) {
+            assertNoError(function() { proxyObj.secureConnection(function() {}); });
+        });
+    },
+    testSecureConnection1a: function(queue) {
+        this._wrap(queue, function(err, proxyObj) {
+            assertError(function() { proxyObj.secureConnection(true); });
+        });
+    },
+    testSecureConnection1b: function(queue) {
+        this._wrap(queue, function(err, proxyObj) {
+            assertNoError(function() { proxyObj.secureConnection(true, function() {}); });
+        });
+    },
+});
 

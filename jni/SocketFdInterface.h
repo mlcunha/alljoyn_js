@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Qualcomm Innovation Center, Inc.
+ * Copyright 2011-2012, Qualcomm Innovation Center, Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -19,8 +19,6 @@
 #include "HttpServer.h"
 #include "ScriptableObject.h"
 #include <qcc/ManagedObj.h>
-
-class HttpServer;
 
 class _SocketFdInterface : public ScriptableObject {
   public:

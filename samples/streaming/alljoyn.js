@@ -13,35 +13,39 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-var onError = function(error) {
-    alert(error.name + ': ' + error.message + ' (' + error.code + ')');
+var onError = function(err) {
+    if (err) alert(err);
 };
 
-var addInterfaces = function(bus) {
-    bus.interfaces['trm.streaming.Source'] = {
+var addInterfaces = function(bus, callback) {
+    var createInterface = function(err) {
+        bus.createInterface({
+            name: 'trm.streaming.Sink', 
+            property: [
+                { name: 'Playlist', signature: 'as', access: 'read' },
+                { name: 'NowPlaying', signature: 'i', access: 'read' }
+            ],
+            signal: [
+                { name: 'PropertiesChanged', signature: 'sa{sv}as' }
+            ],
+            method: [
+                { name: 'Push', signature: 'sssu', argNames: 'fname,type,name,port' },
+                { name: 'Play' },
+                { name: 'Pause' },
+                { name: 'Previous' },
+                { name: 'Next' },
+            ]
+        }, callback);
+    };
+    bus.createInterface({
+        name: 'trm.streaming.Source', 
         property: [
-            { name: 'Streams', signature: 'a(su)', access: 'read' }
+            { name: 'Streams', signature: 'a(ssu)', access: 'read' }
         ],
         signal: [
             { name: 'PropertiesChanged', signature: 'sa{sv}as' }
         ]
-    };
-    bus.interfaces['trm.streaming.Sink'] = {
-        property: [
-            { name: 'Playlist', signature: 'as', access: 'read' },
-            { name: 'NowPlaying', signature: 'i', access: 'read' }
-        ],
-        signal: [
-            { name: 'PropertiesChanged', signature: 'sa{sv}as' }
-        ],
-        method: [
-            { name: 'Push', signature: 'ssu', argNames: 'fname,name,port' },
-            { name: 'Play' },
-            { name: 'Pause' },
-            { name: 'Previous' },
-            { name: 'Next' },
-        ]
-    };
+    }, createInterface);
 };
 
 var source = (function() {
@@ -52,72 +56,85 @@ var source = (function() {
     var bus,
         sessionId = -1,
         sources = {},
-        callbacks = {};
+        callbacks = {},
+        busObject;
 
     var start = function(onStart) {
-        var status,
-            name;
+        var name;
 
         callbacks = {
             onStart: onStart
         };
 
-        bus = new org.alljoyn.bus.BusAttachment(true);
-        callbacks.onStart && callbacks.onStart(bus.globalGUIDString);
-        addInterfaces(bus);
-        bus[OBJECT_PATH] = {
-            'trm.streaming.Source' : {
-                get Streams() {
-                    var srcs = [],
-                        url;
-
-                    for (port in sources) {
-                        srcs.push([sources[port].file.name, port]);
+        bus = new org.alljoyn.bus.BusAttachment();
+        var createInterface = function(err) {
+            callbacks.onStart && callbacks.onStart(bus.globalGUIDString);
+            addInterfaces(bus, registerBusObject);
+        };
+        var registerBusObject = function(err) {
+            busObject = {
+                'trm.streaming.Source' : {
+                    get Streams() {
+                        var srcs = [],
+                            url;
+                        
+                        for (port in sources) {
+                            srcs.push([sources[port].file.name, sources[port].file.type, port]);
+                        }
+                        return srcs;
                     }
-                    return srcs;
                 }
+            };
+            bus.registerBusObject(OBJECT_PATH, busObject, connect);
+        };
+        var connect = function(err) {
+            bus.connect(bindSessionPort);
+        };
+        var bindSessionPort = function(err) {
+            if (err) {
+                alert('Connect to AllJoyn failed [(' + err + ')]');
+                return;
+            }
+            bus.bindSessionPort({
+                port: SESSION_PORT,
+                isMultipoint: true,
+                onAccept: function(port, joiner, opts) {
+                    return true;
+                },
+                onJoined: function(port, id, joiner) {
+                    sessionId = id;
+                    bus.setLinkTimeout(sessionId, 10);
+                },
+                onLost: function(id) {
+                    console.log('Lost session id:' + id);
+                }
+            }, requestName);
+        };
+        var requestName = function(err) {
+            if (err) {
+                alert('Bind session failed [(' + err + ')]');
+                return;
+            }
+            name = SERVICE_NAME + '-' + bus.globalGUIDString;
+            bus.requestName(name, bus.DBUS_NAME_FLAG_REPLACE_EXISTING | bus.DBUS_NAME_FLAG_DO_NOT_QUEUE, advertiseName);
+        };
+        var advertiseName = function(err) {
+            if (err) {
+                alert('Request \'' + name + '\' failed [(' + err + ')]');
+                return;
+            }
+            bus.advertiseName(name, org.alljoyn.bus.SessionOpts.TRANSPORT_ANY, done);
+        };
+        var done = function(err) {
+            if (err) {
+                alert('Advertise \'' + name + '\' failed [(' + err + ')]');
             }
         };
-        status = bus.connect();
-        if (status) {
-            alert('Connect to AllJoyn failed [(' + status + ')]');
-            return;
-        }
-        status = bus.bindSessionPort({
-            port: SESSION_PORT,
-            isMultipoint: true,
-            onAccept: function(port, joiner, opts) {
-                return true;
-            },
-            onJoined: function(port, id, joiner) {
-                sessionId = id;
-				bus.setLinkTimeout(10);
-            },
-            onLost: function(id) {
-                console.log('Lost session id:' + id);
-            }
-        });
-        if (status) {
-            alert('Bind session failed [(' + status + ')]');
-            return;
-        }
-        name = SERVICE_NAME + '-' + bus.globalGUIDString;
-        status = bus.requestName(name, bus.DBUS_NAME_FLAG_REPLACE_EXISTING |
-                                 bus.DBUS_NAME_FLAG_DO_NOT_QUEUE);
-        if (status) {
-            alert('Request \'' + name + '\' failed [(' + status + ')]');
-            return;
-        }
-        status = bus.advertiseName(name, org.alljoyn.bus.SessionOpts.TRANSPORT_ANY);
-        if (status) {
-            alert('Advertise \'' + name + '\' failed [(' + status + ')]');
-            return;
-        }
+        bus.create(true, createInterface);
     };
 
     var addSource = function(file) {
-        var status,
-            opts;
+        var opts;
 
         opts = {
             traffic: org.alljoyn.bus.SessionOpts.TRAFFIC_RAW_RELIABLE,
@@ -127,12 +144,13 @@ var source = (function() {
                 return true; 
             },
             onJoined: function(port, id, opts) {
-                var fd;
-                fd = bus.getSessionFd(id);
-                sources[port].url = window.URL.createObjectURL(sources[port].file);
-                sources[port].id = id;
-                console.log('onJoined sending ' + sources[port].url + ' for name ' + sources[port].file.name + ' port:' + port + ' id:' + id);
-                fd.send(sources[port].url);
+                var send = function(err, fd) {
+                    sources[port].url = window.URL.createObjectURL(sources[port].file);
+                    sources[port].id = id;
+                    console.log('onJoined sending ' + sources[port].url + ' for name ' + sources[port].file.name + ' port:' + port + ' id:' + id);
+                    fd.send(sources[port].url, function(err) {});
+                }
+                bus.getSessionFd(id, send);
             },
             onLost: function(id) {
                 console.log('onLost id:' + id);
@@ -147,41 +165,41 @@ var source = (function() {
                     }
                 }
             }
-        };        
-        status = bus.bindSessionPort(opts);
-        if (status) {
-            alert('Bind session failed [(' + status + ')]');
-            return;
-        }
-
-        sources[opts.port] = { 
-            url: null,
-            file: file,
-            id: 0
         };
-        console.log('bound ' + file.name + ' to ' + opts.port);
-        bus[OBJECT_PATH]['trm.streaming.Source'].PropertiesChanged('trm.streaming.Source', {}, ['Streams'], { sessionId: sessionId });
+        var signal = function(err, port) {
+            if (err) {
+                alert('Bind session failed [(' + err + ')]');
+                return;
+            }
+            sources[port] = { 
+                url: null,
+                file: file,
+                id: 0
+            };
+            console.log('bound ' + file.name + ' to ' + port);
+            busObject.signal('trm.streaming.Source', 'PropertiesChanged', 'trm.streaming.Source', {}, ['Streams'], { sessionId: sessionId }, function() {});
+        };
+        bus.bindSessionPort(opts, signal);
     };
 
     var removeSource = function(name) {
-        var status;
-
         for (port in sources) {
             if (sources[port].file.name === name) {
-                status = bus.unbindSessionPort(port);
-                if (status) {
-                    alert('Unbind session failed [(' + status + ')]');
-                    return;
+                var signal = function(err) {
+                    if (err) {
+                        alert('Unbind session failed [(' + err + ')]');
+                        return;
+                    }
+                    console.log('unbound ' + sources[port].file.name + ' from ' + sources[port].url + ',' + port);
+                    if (sources[port].url) {
+                        window.URL.revokeObjectURL(sources[port].url);
+                        sources[port].url = null;
+                    }
+                    delete sources[port];
+                    busObject.signal('trm.streaming.Source', 'PropertiesChanged', 'trm.streaming.Source', {}, ['Streams'], { sessionId: sessionId }, function() {});
                 }
-
-                console.log('unbound ' + sources[port].file.name + ' from ' + sources[port].url + ',' + port);
-                if (sources[port].url) {
-                    window.URL.revokeObjectURL(sources[port].url);
-                    sources[port].url = null;
-                }
-                delete sources[port];
-                bus[OBJECT_PATH]['trm.streaming.Source'].PropertiesChanged('trm.streaming.Source', {}, ['Streams'], { sessionId: sessionId });
-                break;
+                bus.unbindSessionPort(port, signal);
+                return;
             }
         }
     };
@@ -204,7 +222,8 @@ var sink = (function() {
         sessionId = -1,
         playlist = [],
         nowPlaying = -1,
-        callbacks = {};
+        callbacks = {},
+        busObject;
 
     var log = function(prefix) {
         var msg = prefix;
@@ -227,32 +246,36 @@ var sink = (function() {
     };
 
     var load = function() {
-        var status;
-
-        var onJoined = function(id, opts) {
-            var fd,
-                url;
-                        
-            fd = bus.getSessionFd(id);
-            url = org.alljoyn.bus.SocketFd.createObjectURL(fd);
-            callbacks.onLoad && onLoad(url);
-            bus[OBJECT_PATH]['trm.streaming.Sink'].PropertiesChanged('trm.streaming.Sink', {}, ['NowPlaying'], { sessionId: sessionId });
-            callbacks.onPlaylistChanged && onPlaylistChanged();
+        var onJoined = function(err, id, opts) {
+            if (err) {
+                alert("Join session '" + name + "' failed [(" + err + ")]");
+                return;
+            }
+            var createObjectURL = function(err, fd) {
+                org.alljoyn.bus.SocketFd.createObjectURL(fd, function(request) {
+                    request.status = 200;
+                    request.statusText = 'OK';
+                    request.setResponseHeader('Date', new Date().toUTCString());
+                    request.setResponseHeader('Content-type', playlist[nowPlaying].type);
+                    request.send();
+                }, load);
+            };
+            var load = function(err, url) {
+                callbacks.onLoad && callbacks.onLoad(url);
+                busObject.signal('trm.streaming.Sink', 'PropertiesChanged', 'trm.streaming.Sink', {}, ['NowPlaying'], { sessionId: sessionId }, function() {});
+                callbacks.onPlaylistChanged && callbacks.onPlaylistChanged();
+            };
+            bus.getSessionFd(id, createObjectURL);
         };
-
-        status = bus.joinSession(onJoined, onError, {
+        bus.joinSession({
             host: playlist[nowPlaying].name,
             port: playlist[nowPlaying].port,
             traffic: org.alljoyn.bus.SessionOpts.TRAFFIC_RAW_RELIABLE
-        });
-        if (status) {
-            alert("Join session '" + name + "' failed [(" + status + ")]");
-        }
+        }, onJoined);
     };
 
     var start = function(onStart, onLoad, onPlay, onPause, onPlaylistChanged) {
-        var status,
-            name;
+        var name;
 
         callbacks = {
             onStart: onStart,
@@ -262,122 +285,138 @@ var sink = (function() {
             onPlaylistChanged: onPlaylistChanged
         };
 
-        bus = new org.alljoyn.bus.BusAttachment(true);
-        callbacks.onStart && callbacks.onStart(bus.globalGUIDString);
-        addInterfaces(bus);
-        bus.registerBusListener({
-            onNameOwnerChanged: function(name, previousOwner, newOwner) {
-                var i,
-                    n;
-
-                console.log('onNameOwnerChanged name:' + name + ' previousOwner:' + previousOwner + ' newOwner:' + newOwner);
-                n = playlist.length;
-                for (i = 0; i < playlist.length; ) {
-                    if (previousOwner && !newOwner && playlist[i].mpname === name) {
-                        playlist.splice(i, 1);
-                        if (i < nowPlaying) {
-                            --nowPlaying;
-                        } else if (i === nowPlaying) {
-                            nowPlaying = -1;
+        bus = new org.alljoyn.bus.BusAttachment();
+        var createInterface = function(err) {
+            callbacks.onStart && callbacks.onStart(bus.globalGUIDString);
+            addInterfaces(bus, registerBusListener);
+        };
+        var registerBusListener = function(err) {
+            bus.registerBusListener({
+                onNameOwnerChanged: function(name, previousOwner, newOwner) {
+                    var i,
+                        n;
+                    
+                    console.log('onNameOwnerChanged name:' + name + ' previousOwner:' + previousOwner + ' newOwner:' + newOwner);
+                    n = playlist.length;
+                    for (i = 0; i < playlist.length; ) {
+                        if (previousOwner && !newOwner && playlist[i].mpname === name) {
+                            playlist.splice(i, 1);
+                            if (i < nowPlaying) {
+                                --nowPlaying;
+                            } else if (i === nowPlaying) {
+                                nowPlaying = -1;
+                            }
+                        } else {
+                            ++i;
                         }
-                    } else {
-                        ++i;
+                    }
+                    if (playlist.length !== n) {
+                        bus[OBJECT_PATH]['trm.streaming.Sink'].PropertiesChanged('trm.streaming.Sink', {}, ['Playlist', 'NowPlaying'], { sessionId: sessionId });
+                        log('onNameOwnerChanged');
+                        callbacks.onPlaylistChanged && callbacks.onPlaylistChanged();
                     }
                 }
-                if (playlist.length !== n) {
-                    bus[OBJECT_PATH]['trm.streaming.Sink'].PropertiesChanged('trm.streaming.Sink', {}, ['Playlist', 'NowPlaying'], { sessionId: sessionId });
-                    log('onNameOwnerChanged');
-                    callbacks.onPlaylistChanged && onPlaylistChanged();
+            }, registerBusObject);
+        };
+        var registerBusObject = function(err) {
+            busObject = {
+                'trm.streaming.Sink' : {
+                    get Playlist() { return getPlaylist(); },
+                    get NowPlaying() { return nowPlaying; },
+                    Push: function(context, fname, type, name, port) {
+                        console.log('Push(' + fname + ',' + type + ',' + name + ',' + port + ')');
+                        context.reply();
+
+                        playlist.push({ fname: fname, type: type, name: name, port: port, mpname: context.sender });
+                        busObject.signal('trm.streaming.Sink', 'PropertiesChanged', 'trm.streaming.Sink', {}, ['Playlist'], { sessionId: sessionId }, function() {});
+                        if (nowPlaying === -1) {
+                            nowPlaying = 0;
+                            load();
+                        }
+                        log('Push');
+                        callbacks.onPlaylistChanged && callbacks.onPlaylistChanged();
+                    },
+                    Play: function(context) {
+                        console.log('Play()');
+                        context.reply();
+                        callbacks.onPlay && callbacks.onPlay();
+                    },
+                    Pause: function(context) {
+                        console.log('Pause()');
+                        context.reply();
+                        callbacks.onPause && callbacks.onPause();
+                    },
+                    Previous: function(context) {
+                        console.log('Previous()');
+                        context.reply();
+
+                        if (playlist.length) {
+                            if (nowPlaying > 0) {
+                                --nowPlaying;
+                            }
+                            log('Previous');
+                            load();
+                        }
+                    },
+                    Next: function(context) {
+                        console.log('Next()');
+                        context.reply();
+
+                        if (playlist.length) {
+                            if (nowPlaying < (playlist.length - 1)) {
+                                ++nowPlaying;
+                            }
+                            log('Next');
+                            load();
+                        }
+                    },
                 }
+            };
+            bus.registerBusObject(OBJECT_PATH, busObject, connect);
+        };
+        var connect = function(err) {
+            bus.connect(bindSessionPort);
+        };
+        var bindSessionPort = function(err) {
+            if (err) {
+                alert('Connect to AllJoyn failed [(' + err + ')]');
+                return;
             }
-        });
-        bus[OBJECT_PATH] = {
-            'trm.streaming.Sink' : {
-                get Playlist() { return getPlaylist(); },
-                get NowPlaying() { return nowPlaying; },
-                Push: function(context, fname, name, port) {
-                    console.log('Push(' + fname + ',' + name + ',' + port + ')');
-                    context.reply();
-
-                    playlist.push({ fname: fname, name: name, port: port, mpname: context.sender });
-                    bus[OBJECT_PATH]['trm.streaming.Sink'].PropertiesChanged('trm.streaming.Sink', {}, ['Playlist'], { sessionId: sessionId });
-                    if (nowPlaying === -1) {
-                        nowPlaying = 0;
-                        load();
-                    }
-                    log('Push');
-                    callbacks.onPlaylistChanged && onPlaylistChanged();
+            bus.bindSessionPort({
+                port: SESSION_PORT,
+                isMultipoint: true,
+                onAccept: function(port, joiner, opts) {
+                    return true;
                 },
-                Play: function(context) {
-                    console.log('Play()');
-                    context.reply();
-                    callbacks.onPlay && onPlay();
+                onJoined: function(port, id, joiner) {
+                    sessionId = id;
                 },
-                Pause: function(context) {
-                    console.log('Pause()');
-                    context.reply();
-                    callbacks.onPause && onPause();
-                },
-                Previous: function(context) {
-                    console.log('Previous()');
-                    context.reply();
-
-                    if (playlist.length) {
-                        if (nowPlaying > 0) {
-                            --nowPlaying;
-                        }
-                        log('Previous');
-                        load();
-                    }
-                },
-                Next: function(context) {
-                    console.log('Next()');
-                    context.reply();
-
-                    if (playlist.length) {
-                        if (nowPlaying < (playlist.length - 1)) {
-                            ++nowPlaying;
-                        }
-                        log('Next');
-                        load();
-                    }
-                },
+                onMemberRemoved: function(id, name) {
+                    console.log('onMemberRemoved: id:' + id + ' name:' + name);
+                }
+            }, requestName);
+        };
+        var requestName = function(err) {
+            if (err) {
+                alert('Bind session failed [(' + err + ')]');
+                return;
+            }
+            name = SERVICE_NAME + '-' + bus.globalGUIDString;
+            bus.requestName(name, bus.DBUS_NAME_FLAG_REPLACE_EXISTING | bus.DBUS_NAME_FLAG_DO_NOT_QUEUE, advertiseName);
+        };
+        var advertiseName = function(err) {
+            if (err) {
+                alert('Request \'' + name + '\' failed [(' + err + ')]');
+                return;
+            }
+            bus.advertiseName(name, org.alljoyn.bus.SessionOpts.TRANSPORT_ANY, done);
+        };
+        var done = function(err) {
+            if (err) {
+                alert('Advertise \'' + name + '\' failed [(' + err + ')]');
             }
         };
-        status = bus.connect();
-        if (status) {
-            alert('Connect to AllJoyn failed [(' + status + ')]');
-            return;
-        }
-        status = bus.bindSessionPort({
-            port: SESSION_PORT,
-            isMultipoint: true,
-            onAccept: function(port, joiner, opts) {
-                return true;
-            },
-            onJoined: function(port, id, joiner) {
-                sessionId = id;
-            },
-            onMemberRemoved: function(id, name) {
-                console.log('onMemberRemoved: id:' + id + ' name:' + name);
-            }
-        });
-        if (status) {
-            alert('Bind session failed [(' + status + ')]');
-            return;
-        }
-        name = SERVICE_NAME + '-' + bus.globalGUIDString;
-        status = bus.requestName(name, bus.DBUS_NAME_FLAG_REPLACE_EXISTING |
-                                 bus.DBUS_NAME_FLAG_DO_NOT_QUEUE);
-        if (status) {
-            alert('Request \'' + name + '\' failed [(' + status + ')]');
-            return;
-        }
-        status = bus.advertiseName(name, org.alljoyn.bus.SessionOpts.TRANSPORT_ANY);
-        if (status) {
-            alert('Advertise \'' + name + '\' failed [(' + status + ')]');
-            return;
-        }
+        bus.create(true, createInterface);
     };
 
     var that = {
@@ -400,14 +439,15 @@ var browser = (function() {
         onSinkChanged = null;
 
     var getSourceProperties = function(name, sessionId) {
-        var proxyObj = bus.proxy[name + '/trm/streaming/Source:sessionId=' + sessionId];
-        
-        var onGetAll = function(context, props) {
+        var getAll = function(err, proxyObj) {
+            proxyObj.methodCall('org.freedesktop.DBus.Properties', 'GetAll', 'trm.streaming.Source', done);
+        };
+        var done = function(err, context, props) {
             if (onSourceChanged) {
                 onSourceChanged(props);
             }
         };
-        proxyObj['org.freedesktop.DBus.Properties'].GetAll(onGetAll, onError, 'trm.streaming.Source');
+        bus.getProxyBusObject(name + '/trm/streaming/Source:sessionId=' + sessionId, getAll);
     };
 
     var onSourcePropertiesChanged = function(context, name, changed, invalidated) {
@@ -415,39 +455,41 @@ var browser = (function() {
     };
 
     var joinSource = function(onChanged, name) {
-        var status;
-
-        var onJoined = function(id, opts) {
+        var onJoined = function(err, id, opts) {
+            if (err) {
+                alert('Join session \'' + name + '\' failed [(' + err + ')]');
+                return;
+            }
             sourceId = id;
             onSourceChanged = onChanged;
             getSourceProperties(name, sourceId);
         };
-        status = bus.joinSession(onJoined, onError, {
+        bus.joinSession({
             host: name,
             port: SESSION_PORT,
             isMultipoint: true
-        });
-        if (status) {
-            alert('Join session \'' + name + '\' failed [(' + status + ')]');
-        }
+        }, onJoined);
     };
     var leaveSource = function() {
         if (sourceId !== -1) {
-            bus.leaveSession(sourceId);
-            sourceId = -1;
-            onSourceChanged = null;
+            var done = function(err) {
+                sourceId = -1;
+                onSourceChanged = null;
+            };
+            bus.leaveSession(sourceId, done);
         }
     };
 
     var getSinkProperties = function(name, sessionId) {
-        var proxyObj = bus.proxy[name + '/trm/streaming/Sink:sessionId=' + sessionId];
-        
-        var onGetAll = function(context, props) {
+        var getAll = function(err, proxyObj) {
+            proxyObj.methodCall('org.freedesktop.DBus.Properties', 'GetAll', 'trm.streaming.Sink', done);
+        };
+        var done = function(err, context, props) {
             if (onSinkChanged) {
                 onSinkChanged(props);
             }
         };
-        proxyObj['org.freedesktop.DBus.Properties'].GetAll(onGetAll, onError, 'trm.streaming.Sink');
+        bus.getProxyBusObject(name + '/trm/streaming/Sink:sessionId=' + sessionId, getAll);
     };
 
     var onSinkPropertiesChanged = function(context, name, changed, invalidated) {
@@ -455,87 +497,111 @@ var browser = (function() {
     };
 
     var joinSink = function(onChanged, name) {
-        var status;
-
-        var onJoined = function(id, opts) {
+        var onJoined = function(err, id, opts) {
+            if (err) {
+                alert('Join session \'' + name + '\' failed [(' + err + ')]');
+                return;
+            }
             sinkId = id;
             onSinkChanged = onChanged;
             getSinkProperties(name, sinkId);
         };
-        status = bus.joinSession(onJoined, onError, {
+        bus.joinSession({
             host: name,
             port: SESSION_PORT,
             isMultipoint: true
-        });
-        if (status) {
-            alert('Join session \'' + name + '\' failed [(' + status + ')]');
-        }
+        }, onJoined);
     };
     var leaveSink = function() {
         if (sinkId !== -1) {
-            bus.leaveSession(sinkId);
-            sinkId = -1;
-            onSinkChanged = null;
+            var done = function(err) {
+                sinkId = -1;
+                onSinkChanged = null;
+            };
+            bus.leaveSession(sinkId, done);
         }
     };
 
     var start = function(onFoundSource, onLostSource, onFoundSink, onLostSink) {
-        var status;
-
-        bus = new org.alljoyn.bus.BusAttachment(true);
-        console.log(bus.globalGUIDString);
-        addInterfaces(bus);
-        bus.registerBusListener({
-            onFoundAdvertisedName: function(name, transport, namePrefix) {
-                console.log('onFoundAdvertisedName(' + name + ',' + transport + ',' + namePrefix + ')');
-                if (name.indexOf('.source') >= 0) {
-                    onFoundSource(name);
-                } else {
-                    onFoundSink(name);
+        bus = new org.alljoyn.bus.BusAttachment();
+        var createInterface = function(err) {
+            console.log(bus.globalGUIDString);
+            addInterfaces(bus, registerBusListener);
+        };
+        var registerBusListener = function(err) {
+            bus.registerBusListener({
+                onFoundAdvertisedName: function(name, transport, namePrefix) {
+                    console.log('onFoundAdvertisedName(' + name + ',' + transport + ',' + namePrefix + ')');
+                    if (name.indexOf('.source') >= 0) {
+                        onFoundSource(name);
+                    } else {
+                        onFoundSink(name);
+                    }
+                },
+                onLostAdvertisedName: function(name, transport, namePrefix) {
+                    console.log('onLostAdvertisedName(' + name + ',' + transport + ',' + namePrefix + ')');
+                    if (name.indexOf('.source') >= 0) {
+                        onLostSource(name);
+                    } else {
+                        onLostSink(name);
+                    }
                 }
-            },
-            onLostAdvertisedName: function(name, transport, namePrefix) {
-                console.log('onLostAdvertisedName(' + name + ',' + transport + ',' + namePrefix + ')');
-                if (name.indexOf('.source') >= 0) {
-                    onLostSource(name);
-                } else {
-                    onLostSink(name);
-                }
+            }, connect);
+        };
+        var connect = function(err) {
+            bus.connect(registerSignalHandler1);
+        }
+        var registerSignalHandler1 = function(err) {
+            if (err) {
+                alert('Connect to AllJoyn failed [(' + err + ')]');
+                return;
             }
-        });
-        
-        status = bus.connect();
-        if (status) {
-            alert('Connect to AllJoyn failed [(' + status + ')]');
-        }
-        bus.registerSignalHandler(onSourcePropertiesChanged, 'trm.streaming.Source.PropertiesChanged');
-        bus.registerSignalHandler(onSinkPropertiesChanged, 'trm.streaming.Sink.PropertiesChanged');
-        status = bus.findAdvertisedName(SERVICE_NAME);
-        if (status) {
-            alert('Find \'' + SERVICE_NAME + '\' failed [(' + status + ')]');
-        }
+            bus.registerSignalHandler(onSourcePropertiesChanged, 'trm.streaming.Source.PropertiesChanged', registerSignalHandler2);
+        };
+        var registerSignalHandler2 = function(err) {
+            bus.registerSignalHandler(onSinkPropertiesChanged, 'trm.streaming.Sink.PropertiesChanged', findAdvertisedName);
+        };
+        var findAdvertisedName = function(err) {
+            bus.findAdvertisedName(SERVICE_NAME, done);
+        };
+        var done = function(err) {
+            if (err) {
+                alert('Find \'' + SERVICE_NAME + '\' failed [(' + err + ')]');
+            }
+        };
+        bus.create(true, createInterface);
     };
 
-    var push = function(fname, name, port, sink) {
-        var proxyObj = bus.proxy[sink + '/trm/streaming/Sink:sessionId=' + sinkId];
-        proxyObj['trm.streaming.Sink'].Push(function() {}, onError, fname, name, port);
+    var push = function(fname, type, name, port, sink) {
+        var done = function(err, proxyObj) {
+            proxyObj.methodCall('trm.streaming.Sink', 'Push', fname, type, name, port, onError);
+        };
+        bus.getProxyBusObject(sink + '/trm/streaming/Sink:sessionId=' + sinkId, done);
     };
     
     var play = function(sink) {
-        var proxyObj = bus.proxy[sink + '/trm/streaming/Sink:sessionId=' + sinkId];
-        proxyObj['trm.streaming.Sink'].Play(function() {}, onError);
+        var done = function(err, proxyObj) {
+            proxyObj.methodCall('trm.streaming.Sink', 'Play', onError);
+        };
+        bus.getProxyBusObject(sink + '/trm/streaming/Sink:sessionId=' + sinkId, done);
     };
     var pause = function(sink) {
-        var proxyObj = bus.proxy[sink + '/trm/streaming/Sink:sessionId=' + sinkId];
-        proxyObj['trm.streaming.Sink'].Pause(function() {}, onError);
+        var done = function(err, proxyObj) {
+            proxyObj.methodCall('trm.streaming.Sink', 'Pause', onError);
+        };
+        bus.getProxyBusObject(sink + '/trm/streaming/Sink:sessionId=' + sinkId, done);
     };
     var previous = function(sink) {
-        var proxyObj = bus.proxy[sink + '/trm/streaming/Sink:sessionId=' + sinkId];
-        proxyObj['trm.streaming.Sink'].Previous(function() {}, onError);
+        var done = function(err, proxyObj) {
+            proxyObj.methodCall('trm.streaming.Sink', 'Previous', onError);
+        };
+        bus.getProxyBusObject(sink + '/trm/streaming/Sink:sessionId=' + sinkId, done);
     };
     var next = function(sink) {
-        var proxyObj = bus.proxy[sink + '/trm/streaming/Sink:sessionId=' + sinkId];
-        proxyObj['trm.streaming.Sink'].Next(function() {}, onError);
+        var done = function(err, proxyObj) {
+            proxyObj.methodCall('trm.streaming.Sink', 'Next', onError);
+        };
+        bus.getProxyBusObject(sink + '/trm/streaming/Sink:sessionId=' + sinkId, done);
     };
 
     var that = {

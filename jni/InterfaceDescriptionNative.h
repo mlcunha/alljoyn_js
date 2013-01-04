@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Qualcomm Innovation Center, Inc.
+ * Copyright 2011-2012, Qualcomm Innovation Center, Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,11 +16,16 @@
 #ifndef _INTERFACEDESCRIPTIONNATIVE_H
 #define _INTERFACEDESCRIPTIONNATIVE_H
 
+#include "BusAttachment.h"
 #include "NativeObject.h"
 
 class InterfaceDescriptionNative : public NativeObject {
   public:
+    static QStatus CreateInterface(Plugin& plugin, BusAttachment& busAttachment, InterfaceDescriptionNative* interfaceDescriptionNative);
+    static InterfaceDescriptionNative* GetInterface(Plugin& plugin, BusAttachment& busAttachment, const qcc::String& name);
+
     InterfaceDescriptionNative(Plugin& plugin, NPObject* objectValue);
+    InterfaceDescriptionNative(InterfaceDescriptionNative* other);
     virtual ~InterfaceDescriptionNative();
 };
 

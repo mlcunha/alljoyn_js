@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Qualcomm Innovation Center, Inc.
+ * Copyright 2011-2012, Qualcomm Innovation Center, Inc.
  * 
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -13,16 +13,12 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-function onError(error) {
-    fail(error.name + ": " + error.message + " (" + error.code + ")");
-};
-
 function assertError(callback, error) {
     try {
         callback();
     } catch(e) {
-        if (error && alljoyn.BusError.name != error) {
-            fail("expected to throw " + error + " but threw " + alljoyn.BusError.name);
+        if (error && org.alljoyn.bus.BusError.name != error) {
+            fail("expected to throw " + error + " but threw " + org.alljoyn.bus.BusError.name);
         }
         return true;
     }
@@ -33,6 +29,24 @@ function assertNoError(callback) {
     try {
         callback();
     } catch(e) {
-        fail("expected not to throw exception, but threw " + alljoyn.BusError.name + " (" + alljoyn.BusError.message + ")");
+        fail("expected not to throw exception, but threw " + org.alljoyn.bus.BusError.name + " (" + org.alljoyn.bus.BusError.message + ")");
     }
 }
+
+function assertFalsy(actual) {
+    if (actual) {
+        fail("expected falsy but was " + actual);
+    }
+}
+
+function ondeviceready(f) {
+    return function(callback) {
+        if (window.cordova) {
+            document.addEventListener('deviceready', function() { f(callback); }, false);
+        } else {
+            f(callback);
+        };
+    };
+};
+
+

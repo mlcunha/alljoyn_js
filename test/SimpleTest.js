@@ -14,56 +14,77 @@
  *    limitations under the License.
  */
 AsyncTestCase("SimpleTest", {
-        setUp: function() {
-            /*:DOC += <object id="alljoyn" type="application/x-alljoyn"/> */
-            alljoyn = document.getElementById("alljoyn");
-            serviceBus = new alljoyn.BusAttachment();
-            clientBus = new alljoyn.BusAttachment();
-        },
-        tearDown: function() {
+    _setUp: ondeviceready(function(callback) {
+        var clientBusCreate = function(err) {
+            assertFalsy(err);
+            clientBus = new org.alljoyn.bus.BusAttachment();
+            clientBus.create(false, callback);
+        };
+        serviceBus = new org.alljoyn.bus.BusAttachment();
+        serviceBus.create(false, clientBusCreate);
+    }),
+    tearDown: function() {
+        clientBus.destroy();
+        serviceBus.destroy();
+    },
+
+    testSimple: function(queue) {
+        queue.call(function(callbacks) {
+            /* Create a Ping service attachment. */
+            var serviceBusCreateInterface = function(err) {
+                assertFalsy(err);
+                serviceBus.createInterface({
+                    name: "org.alljoyn.bus.samples.simple.SimpleInterface",
+                    method: [
+                        { name: 'Ping', signature: 's', returnSignature: 's', argNames: 'inStr,outStr' }
+                    ]
+                }, callbacks.add(serviceBusRegisterBusObject));
+            };
+            var serviceBusRegisterBusObject = function(err) {
+                assertFalsy(err);
+                serviceBus.registerBusObject("/testobject", {
+                    "org.alljoyn.bus.samples.simple.SimpleInterface": {
+                        Ping: function(context, inStr) { context.reply(inStr); }
+                    }
+                }, callbacks.add(serviceBusConnect));
+            };
+            var serviceBusConnect = function(err) {
+                assertFalsy(err);
+                serviceBus.connect(callbacks.add(clientBusConnect));
+            };
+
+            /* Create a Ping client attachment. */
+            var clientBusConnect = function(err) {
+                assertFalsy(err);
+                clientBus.connect(callbacks.add(getDbus));
+            };
+
             /*
-             * We don't know when the gc will run, so explicitly disconnect to ensure that there is
-             * no interference between tests (particularly signal handlers).
+             * Now kick off the Ping.  This needs to be synchronized to not Ping until the
+             * service has acquired its name.
              */
-            assertEquals(0, clientBus.disconnect());
-            assertEquals(0, serviceBus.disconnect());
-        },
-
-        testSimple: function(queue) {
-            queue.call(function(callbacks) {
-                    /* Create a Ping service attachment. */
-                    serviceBus.interfaces["org.alljoyn.bus.samples.simple.SimpleInterface"] = {
-                        method: [
-                            { name: 'Ping', signature: 's', returnSignature: 's', argNames: 'inStr,outStr' }
-                        ]
-                    };
-                    serviceBus["/testobject"] = {
-                        "org.alljoyn.bus.samples.simple.SimpleInterface": {
-                            Ping: function(context, inStr) { assertEquals(0, context.reply(inStr)); }
-                        }
-                    };
-                    assertEquals(0, serviceBus.connect());
-
-                    /* Create a Ping client attachment. */
-                    assertEquals(0, clientBus.connect());
-                    
-                    /*
-                     * Now kick off the Ping.  This needs to be synchronized to not Ping until the
-                     * service has acquired its name.
-                     */
-                    var onErr = callbacks.addErrback(onError);
-                    var onRequestName = callbacks.add(function(context, result) {
-                            assertEquals(1, result);
-                            var testobject = clientBus.proxy["org.alljoyn.bus.samples.simple/testobject"];
-                            testobject["org.alljoyn.bus.samples.simple.SimpleInterface"].Ping(onPing, onErr, 
-                                                                                              "hello");
-                        });
-                    var onPing = callbacks.add(function(context, outStr) {
-                            assertEquals("hello", outStr);
-                        });
-                    var dbus = serviceBus.proxy["org.freedesktop.DBus/org/freedesktop/DBus"];
-                    dbus["org.freedesktop.DBus"].RequestName(onRequestName, onErr, 
-                                                             "org.alljoyn.bus.samples.simple", 0);
-                });
-        }
-    });
+            var getDbus = function(err) {
+                assertFalsy(err);
+                serviceBus.getProxyBusObject("org.freedesktop.DBus/org/freedesktop/DBus", callbacks.add(requestName));
+            };
+            var requestName = function(err, dbus) {
+                assertFalsy(err);
+                dbus.methodCall("org.freedesktop.DBus", "RequestName", "org.alljoyn.bus.samples.simple", 0, callbacks.add(onRequestName));
+            };
+            var onRequestName = function(err, context, result) {
+                assertFalsy(err);
+                assertEquals(1, result);
+                clientBus.getProxyBusObject("org.alljoyn.bus.samples.simple/testobject", callbacks.add(ping));
+            };
+            var ping = function(err, testobject) {
+                assertFalsy(err);
+                testobject.methodCall("org.alljoyn.bus.samples.simple.SimpleInterface", "Ping", "hello", callbacks.add(onPing));
+            };
+            var onPing = function(err, context, outStr) {
+                assertFalsy(err);
+                assertEquals("hello", outStr);
+            };
+            this._setUp(callbacks.add(serviceBusCreateInterface));
+        });
+    }
+});

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Qualcomm Innovation Center, Inc.
+ * Copyright 2011-2012, Qualcomm Innovation Center, Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -17,17 +17,14 @@
 #define _BUSATTACHMENTHOST_H
 
 #include "BusAttachment.h"
-#include "InterfaceDescriptionsHost.h"
-#include "ProxyBusObjectsHost.h"
+#include "ProxyBusObjectHost.h"
 #include "ScriptableObject.h"
-#if defined(QCC_OS_ANDROID)
-#include "os/android/KeyStoreListener.h"
-#endif
 #include <qcc/ManagedObj.h>
 #include <qcc/String.h>
 class AuthListener;
 class BusListener;
 class BusObjectListener;
+class InterfaceDescription;
 class SessionListener;
 class SessionPortListener;
 class SignalReceiver;
@@ -36,18 +33,12 @@ class _BusAttachmentHost : public ScriptableObject {
     friend class JoinSessionAsyncCB;
     friend class SessionPortListener;
   public:
-    _BusAttachmentHost(Plugin& plugin, const char* applicationName, bool allowRemoteMessages);
+    _BusAttachmentHost(Plugin& plugin);
     virtual ~_BusAttachmentHost();
-    virtual bool HasProperty(const qcc::String& name);
 
   private:
-    BusAttachment busAttachment;
-#if defined(QCC_OS_ANDROID)
-    KeyStoreListener keyStoreListener;
-#endif
+    BusAttachment* busAttachment;
     AuthListener* authListener;
-    ProxyBusObjectsHost proxyBusObjectsHost;
-    InterfaceDescriptionsHost interfaceDescriptionsHost;
     qcc::String applicationName;
     qcc::String connectSpec;
     std::list<SignalReceiver*> signalReceivers;
@@ -55,12 +46,9 @@ class _BusAttachmentHost : public ScriptableObject {
     std::map<ajn::SessionPort, SessionPortListener*> sessionPortListeners;
     std::map<ajn::SessionId, SessionListener*> sessionListeners;
     std::map<qcc::String, BusObjectListener*> busObjectListeners;
+    std::map<qcc::String, ProxyBusObjectHost> proxyBusObjects;
 
     bool getGlobalGUIDString(NPVariant* result);
-    bool getInterfaces(NPVariant* result);
-    bool getPeerSecurityEnabled(NPVariant* result);
-    bool getProxy(NPVariant* result);
-    bool getTimestamp(NPVariant* result);
     bool getUniqueName(NPVariant* result);
 
     bool addLogonEntry(const NPVariant* args, uint32_t argCount, NPVariant* result);
@@ -72,16 +60,26 @@ class _BusAttachmentHost : public ScriptableObject {
     bool clearKeyStore(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool clearKeys(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool connect(const NPVariant* args, uint32_t argCount, NPVariant* result);
+    bool create(const NPVariant* args, uint32_t argCount, NPVariant* result);
+    bool createInterface(const NPVariant* args, uint32_t argCount, NPVariant* result);
+    bool createInterfacesFromXML(const NPVariant* args, uint32_t argCount, NPVariant* result);
+    bool destroy(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool disconnect(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool enablePeerSecurity(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool findAdvertisedName(const NPVariant* args, uint32_t argCount, NPVariant* result);
+    bool getInterface(const NPVariant* args, uint32_t argCount, NPVariant* result);
+    bool getInterfaces(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool getKeyExpiration(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool getPeerGUID(const NPVariant* args, uint32_t argCount, NPVariant* result);
+    bool getPeerSecurityEnabled(const NPVariant* args, uint32_t argCount, NPVariant* result);
+    bool getProxyBusObject(const NPVariant* args, uint32_t argCount, NPVariant* result);
+    bool getTimestamp(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool joinSession(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool leaveSession(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool getSessionFd(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool nameHasOwner(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool registerBusListener(const NPVariant* args, uint32_t argCount, NPVariant* result);
+    bool registerBusObject(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool registerSignalHandler(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool releaseName(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool reloadKeyStore(const NPVariant* args, uint32_t argCount, NPVariant* result);
@@ -93,16 +91,22 @@ class _BusAttachmentHost : public ScriptableObject {
     bool setSessionListener(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool unbindSessionPort(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool unregisterBusListener(const NPVariant* args, uint32_t argCount, NPVariant* result);
+    bool unregisterBusObject(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool unregisterSignalHandler(const NPVariant* args, uint32_t argCount, NPVariant* result);
-
-    bool enumerateBusObjects(NPIdentifier** value, uint32_t* count);
-    bool getBusObject(const qcc::String& name, NPVariant* result);
-    bool registerBusObject(const qcc::String& name, const NPVariant* value);
-    bool unregisterBusObject(const qcc::String& name);
 
     QStatus GetSignal(const qcc::String& signalName, const ajn::InterfaceDescription::Member*& signal);
     qcc::String MatchRule(const ajn::InterfaceDescription::Member* signal, const qcc::String& sourcePath);
     QStatus Connect(Plugin& plugin, const char* connectSpec);
+    /**
+     * Parse the ProxyBusObject name string into its components.
+     *
+     * @param[in] name a proxy bus object name of the form "<serviceName><objectPath><args>"
+     * @param[out] serviceName a D-Bus bus name
+     * @param[out] path a D-Bus object path
+     * @param[out] argMap a map of args from the args component of name: ":<name>=<value>[,<name>=<value>]"
+     */
+    void ParseName(const qcc::String& name, qcc::String& serviceName, qcc::String& path, std::map<qcc::String, qcc::String>& argMap);
+    void stopAndJoin();
 };
 
 typedef qcc::ManagedObj<_BusAttachmentHost> BusAttachmentHost;

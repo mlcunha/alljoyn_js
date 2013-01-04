@@ -14,268 +14,469 @@
  *    limitations under the License.
  */
 AsyncTestCase("BusAttachmentTest", {
-        setUp: function() {
-            /*:DOC += <object id="alljoyn" type="application/x-alljoyn"/> */
-            alljoyn = document.getElementById("alljoyn");
-            bus = new alljoyn.BusAttachment();
-            otherBus = undefined;
-        },
-        tearDown: function() {
-            /*
-             * We don't know when the gc will run, so explicitly disconnect to ensure that there is
-             * no interference between tests (particularly signal handlers).
-             */
-            if (otherBus) {
-                assertEquals(0, otherBus.disconnect());
-                otherBus = undefined;
-            }
-            assertEquals(0, bus.disconnect());
-        },
+    _setUp: ondeviceready(function(callback) {
+        bus = new org.alljoyn.bus.BusAttachment();
+        otherBus = undefined;
+        bus.create(false, callback);
+    }),
+    tearDown: function() {
+        bus.destroy();
+        otherBus && otherBus.destroy();
+    },
 
-        testDisconnectedAttributes: function() {
-            assertNull(bus.uniqueName);
-            assertNotNull(bus.globalGUIDString);
-            assertNotNull(bus.timestamp);
-        },
+    testDisconnectedAttributes: function(queue) {
+        queue.call(function(callbacks) {
+            var timestamp = function(err) {
+                assertNull(bus.uniqueName);
+                assertNotNull(bus.globalGUIDString);
+                bus.getTimestamp(callbacks.add(done));
+            };
+            var done = function(err, ts) {
+                assertNotNull(ts);
+            };
+            this._setUp(callbacks.add(timestamp));
+        });
+    },
 
-        testConnectedAttributes: function() {
-            assertEquals(0, bus.connect());
-            assertNotNull(bus.uniqueName);
-        },
+    testConnectedAttributes: function(queue) {
+        queue.call(function(callbacks) {
+            var connect = function(err) {
+                bus.connect(callbacks.add(uniqueName));
+            };
+            var uniqueName = function(err) {
+                assertFalsy(err);
+                assertNotNull(bus.uniqueName);
+            };
+            this._setUp(callbacks.add(connect));
+        });
+    },
 
-        testPeerSecurityEnabled: function() {
-            assertFalse(bus.peerSecurityEnabled);
-            assertEquals(0, bus.enablePeerSecurity("ALLJOYN_SRP_KEYX"));
-            assertTrue(bus.peerSecurityEnabled);
-        },
+    testPeerSecurityEnabled: function(queue) {
+        queue.call(function(callbacks) {
+            var getDisabled = function(err) {
+                bus.getPeerSecurityEnabled(callbacks.add(disabled));
+            };
+            var disabled = function(err, enabled) {
+                assertFalsy(err);
+                assertFalse(enabled);
+                bus.enablePeerSecurity("ALLJOYN_SRP_KEYX", callbacks.add(getEnabled));
+            };
+            var getEnabled = function(err) {
+                assertFalsy(err);
+                bus.getPeerSecurityEnabled(callbacks.add(enabled));
+            };
+            var enabled = function(err, enabled) {
+                assertFalsy(err);
+                assertTrue(enabled);
+            };
+            this._setUp(callbacks.add(getDisabled));
+        });
+    },
 
-        testRegisterUnregisterBusObject: function() {
-            var busObject = {};
-            /*
-             * NPAPI doesn't return the "set" object when setting a property.  So this
-             *     assertEquals(busObject, bus["/busObject"] = busObject);
-             * isn't valid.
-             */
-            bus["/busObject"] = busObject;
-            assertEquals(busObject, bus["/busObject"]);
-            bus["/busObject"] = undefined; // delete bus["/busObject"] doesn't work in chrome
-            assertUndefined(bus["/busObject"]);
-        },
+    testRegisterUnregisterBusObject: function(queue) {
+        queue.call(function(callbacks) {
+            var register = function(err) {
+                bus.registerBusObject("/busObject", {}, callbacks.add(unregister));
+            };
+            var unregister = function(err) {
+                assertFalsy(err);
+                bus.unregisterBusObject("/busObject", callbacks.add(done));
+            };
+            var done = function(err) {
+                assertFalsy(err);
+            };
+            this._setUp(callbacks.add(register));
+        });
+    },
 
-        testConnect: function() {
-            assertEquals(0, bus.connect());
-            assertEquals(0, bus.disconnect());
-        },
+    testConnect: function(queue) {
+        queue.call(function(callbacks) {
+            var connect = function(err) {
+                bus.connect(callbacks.add(disconnect));
+            };
+            var disconnect = function(err) {
+                assertFalsy(err);
+                bus.disconnect(callbacks.add(done));
+            };
+            var done = function(err) {
+                assertFalsy(err);
+            };
+            this._setUp(callbacks.add(connect));
+        });
+    },
 
-        testConstructor: function() {
-            assertNotNull(new alljoyn.BusAttachment());
-            assertNotNull(new alljoyn.BusAttachment(false));
-            assertNotNull(new alljoyn.BusAttachment(true));
-        },
+    testConstructor: function(queue) {
+        assertNotNull(new org.alljoyn.bus.BusAttachment());
+    },
 
-        testEnumerate: function() {
-            bus['/foo'] = {};
-            bus['/foo/bar'] = {};
-
+    testEnumerate: function(queue) {
+        queue.call(function(callbacks) {
             var property = {};
-            for (var n in bus) {
-                property[n] = true;
-            }
-            assertTrue(property["globalGUIDString"]);
-            assertTrue(property["uniqueName"]);
-            assertTrue(property["interfaces"]);
-            assertTrue(property["proxy"]);
-            assertTrue(property["/foo/bar"]);
-            assertTrue(property["/foo"]);
-            assertTrue(property["connect"]);
-            assertTrue(property["disconnect"]);
-            assertTrue(property["registerSignalHandler"]);
-            assertTrue(property["unregisterSignalHandler"]);
+            var enumObject = function(err) {
+                for (var n in bus) {
+                    property[n] = true;
+                }
+                assertTrue(property["globalGUIDString"]);
+                assertTrue(property["uniqueName"]);
+                assertTrue(property["connect"]);
+                assertTrue(property["disconnect"]);
+                assertTrue(property["registerSignalHandler"]);
+                assertTrue(property["unregisterSignalHandler"]);
 
-            bus.interfaces["org.sample.Foo"] = {};
-            property = {};
-            for (var n in bus.interfaces) {
-                property[n] = true;
-            }
-            assertTrue(property["org.alljoyn.Bus"]);
-            assertTrue(property["org.alljoyn.Bus.Peer.Authentication"]);
-            assertTrue(property["org.alljoyn.Bus.Peer.HeaderCompression"]);
-            assertTrue(property["org.freedesktop.DBus"]);
-            assertTrue(property["org.freedesktop.DBus.Introspectable"]);
-            assertTrue(property["org.freedesktop.DBus.Peer"]);
-            assertTrue(property["org.freedesktop.DBus.Properties"]);
-            assertTrue(property["org.sample.Foo"]);
-        },
+                bus.createInterface({ name: "org.sample.Foo" }, callbacks.add(getInterfaces));
+            };
+            var getInterfaces = function(err) {
+                assertFalsy(err);
+                bus.getInterfaces(callbacks.add(enumInterfaces));
+            };
+            var enumInterfaces = function(err, interfaces) {
+                assertFalsy(err);
+                property = {};
+                for (var i = 0; i < interfaces.length; ++i) {
+                    property[interfaces[i].name] = true;
+                }
+                assertTrue(property["org.alljoyn.Bus"]);
+                assertTrue(property["org.alljoyn.Bus.Peer.Authentication"]);
+                assertTrue(property["org.alljoyn.Bus.Peer.HeaderCompression"]);
+                assertTrue(property["org.freedesktop.DBus"]);
+                assertTrue(property["org.freedesktop.DBus.Introspectable"]);
+                assertTrue(property["org.freedesktop.DBus.Peer"]);
+                assertTrue(property["org.freedesktop.DBus.Properties"]);
+                assertTrue(property["org.sample.Foo"]);
+            };
+            this._setUp(callbacks.add(enumObject));
+        });
+    },
 
-        testCreateGetInterfaceDescription: function() {
-            var interfaceDescription = {};
-            assertEquals(interfaceDescription, bus.interfaces["interface.Description"] = interfaceDescription);
-            assertEquals(interfaceDescription, bus.interfaces["interface.Description"]);
-        },
+    testCreateGetInterfaceDescription: function(queue) {
+        queue.call(function(callbacks) {
+            var interfaceDescription = { name: "test.interface" };
+            var createInterface = function(err) {
+                bus.createInterface(interfaceDescription, callbacks.add(getInterface));
+            };
+            var getInterface = function(err) {
+                assertFalsy(err);
+                bus.getInterface(interfaceDescription.name, callbacks.add(equals));
+            };
+            var equals = function(err, intf) {
+                assertFalsy(err);
+                assertEquals(interfaceDescription, intf);
+            };
+            this._setUp(callbacks.add(createInterface));
+        });
+    },
 
-        testProxy: function() {
-            assertNotNull(bus.proxy["org.freedesktop.DBus/org/freedesktop/DBus"]);
-        },
+    testProxy: function(queue) {
+        queue.call(function(callbacks) {
+            var getProxyObj = function(err) {
+                bus.getProxyBusObject("org.freedesktop.DBus/org/freedesktop/DBus", callbacks.add(done));
+            };
+            var done = function(err, proxyObj) {
+                assertFalsy(err);
+                assertNotNull(proxyObj);
+            };
+            this._setUp(callbacks.add(getProxyObj));
+        });
+    },
 
-        testRegisterUnregisterMultipleSignalHandlers: function(queue) {
-            queue.call(function(callbacks) {
-                    var onNameOwnerChanged0 = callbacks.add(function(context, name, oldOwner, newOwner) {
-                            assertEquals(0, bus.unregisterSignalHandler(onNameOwnerChanged0, "org.freedesktop.DBus.NameOwnerChanged"));
-                        });
-                    var onNameOwnerChanged1 = callbacks.add(function(context, name, oldOwner, newOwner) {
-                            assertEquals(0, bus.unregisterSignalHandler(onNameOwnerChanged1, "org.freedesktop.DBus.NameOwnerChanged"));
-                        });
-                    assertEquals(0, bus.connect());
-                    assertEquals(0, bus.registerSignalHandler(onNameOwnerChanged0, "org.freedesktop.DBus.NameOwnerChanged"));
-                    assertEquals(0, bus.registerSignalHandler(onNameOwnerChanged1, "org.freedesktop.DBus.NameOwnerChanged"));
-                    
-                    /* This will cause a NameOwnerChanged signal to be fired. */
-                    otherBus = new alljoyn.BusAttachment();
-                    assertEquals(0, otherBus.connect());
+    testRegisterUnregisterMultipleSignalHandlers: function(queue) {
+        queue.call(function(callbacks) {
+            var onNameOwnerChanged0 = callbacks.add(function(context, name, oldOwner, newOwner) {
+                bus.unregisterSignalHandler(onNameOwnerChanged0, "org.freedesktop.DBus.NameOwnerChanged", callbacks.add(function(err) {
+                    assertFalsy(err);
+                }));
+            });
+            var onNameOwnerChanged1 = callbacks.add(function(context, name, oldOwner, newOwner) {
+                bus.unregisterSignalHandler(onNameOwnerChanged1, "org.freedesktop.DBus.NameOwnerChanged", callbacks.add(function(err) {
+                    assertFalsy(err);
+                }));
+            });
+
+            var connect = function(err) {
+                bus.connect(callbacks.add(registerSignalHandler));
+            };
+            var registerSignalHandler = function(err) {
+                assertFalsy(err);
+                bus.registerSignalHandler(onNameOwnerChanged0, "org.freedesktop.DBus.NameOwnerChanged", callbacks.add(function(err) {
+                    assertFalsy(err);
+                    bus.registerSignalHandler(onNameOwnerChanged1, "org.freedesktop.DBus.NameOwnerChanged", callbacks.add(otherBusCreate));
+                }))};
+            var otherBusCreate = function(err) {
+                assertFalsy(err);
+                otherBus = new org.alljoyn.bus.BusAttachment();
+                otherBus.create(false, callbacks.add(otherBusConnect));
+            };
+            var otherBusConnect = function(err) {
+                /* This will cause a NameOwnerChanged signal to be fired. */
+                otherBus.connect(callbacks.add(done));
+            };
+            var done = function(err) {
+                assertFalsy(err);
+            };                
+            this._setUp(callbacks.add(connect));
+        });
+    },
+
+    testSignalHandler: function(queue) {
+        queue.call(function(callbacks) {
+            var onNameOwnerChanged = callbacks.add(function(context, name, oldOwner, newOwner) {
+                assertEquals("NameOwnerChanged", context.memberName);
+            });
+
+            var connect = function(err) {
+                bus.connect(callbacks.add(registerSignalHandler));
+            };
+            var registerSignalHandler = function(err) {
+                assertFalsy(err);
+                bus.registerSignalHandler(onNameOwnerChanged, "org.freedesktop.DBus.NameOwnerChanged", callbacks.add(otherBusCreate));
+            };
+            var otherBusCreate = function(err) {
+                assertFalsy(err);
+                otherBus = new org.alljoyn.bus.BusAttachment();
+                otherBus.create(false, callbacks.add(otherBusConnect));
+            };
+            var otherBusConnect = function(err) {
+                assertFalsy(err);
+                /* This will cause a NameOwnerChanged signal to be fired. */
+                otherBus.connect(callbacks.add(done));
+            };
+            var done = function(err) {
+                assertFalsy(err);
+            };                
+            this._setUp(callbacks.add(connect));
+        });
+    },
+
+    testSameHandlerDifferentSignals: function(queue) {
+        queue.call(function(callbacks) {
+            var busObject = {
+                "org.alljoyn.bus.PlayerState": {}
+            };
+            var connect = function(err) {
+                bus.connect(callbacks.add(createInterface));
+            };
+            var createInterface = function(err) {
+                assertFalsy(err);
+                bus.createInterface({
+                    name: "org.alljoyn.bus.PlayerState",
+                    signal: [
+                        { name: "PlayerPosition", signature: "uuu", argNames: "x,y,rotation" },
+                        { name: "PlayerVelocity", signature: "ii", argNames: "dx,xy" }
+                    ]
+                }, callbacks.add(registerBusObject));
+            };
+            var registerBusObject = function(err) {
+                assertFalsy(err);
+                bus.registerBusObject("/game/player", busObject, callbacks.add(registerSignalHandler));
+            };
+            var registerSignalHandler = function(err) {
+                assertFalsy(err);
+                var signal = {};
+                var onPlayer = callbacks.add(function(context) {
+                    signal[context.memberName] = true;
+                    if (signal.PlayerPosition && signal.PlayerVelocity) {
+                        assertTrue(true);
+                    }
+                }, 2);
+                bus.registerSignalHandler(onPlayer, "org.alljoyn.bus.PlayerState.PlayerPosition", callbacks.add(function(err) {
+                    bus.registerSignalHandler(onPlayer, "org.alljoyn.bus.PlayerState.PlayerVelocity", callbacks.add(emitSignal));
+                }));
+            };
+            var emitSignal = function(err) {
+                assertFalsy(err);
+                busObject.signal("org.alljoyn.bus.PlayerState", "PlayerPosition", 100, 200, 300, callbacks.add(function(err) {
+                    assertFalsy(err);
+                    busObject.signal("org.alljoyn.bus.PlayerState", "PlayerVelocity", +30, -40, callbacks.add(done));
+                }));
+            };
+            var done = function(err) {
+                assertFalsy(err);
+            };
+            this._setUp(callbacks.add(connect));
+        });
+    },
+
+    testBroadcastSignal: function(queue) {
+        queue.call(function(callbacks) {
+            var busObject = {
+                "org.alljoyn.bus.samples.aroundme.chat": {}
+            };
+            var connect = function(err) {
+                bus.connect(callbacks.add(createInterface));
+            };
+            var createInterface = function(err) {
+                assertFalsy(err);
+                bus.createInterface({
+                    name: "org.alljoyn.bus.samples.aroundme.chat",
+                    signal: [
+                        { name: 'Chat', signature: 'ss', argNames: 'sender,text' }
+                    ]
+                }, callbacks.add(registerBusObject));
+            };
+            var registerBusObject = function(err) {
+                assertFalsy(err);
+                bus.registerBusObject("/chatService", busObject, callbacks.add(registerSignalHandler));
+            };
+            var registerSignalHandler = function(err) {
+                assertFalsy(err);
+                var onChat = callbacks.add(function(context, sender, text) {
+                    assertEquals(32, context.flags);
                 });
-        },
+                bus.registerSignalHandler(onChat, "org.alljoyn.bus.samples.aroundme.chat.Chat", callbacks.add(emitSignal));
+            };
+            var emitSignal = function(err) {
+                assertFalsy(err);
+                busObject.signal("org.alljoyn.bus.samples.aroundme.chat", "Chat", "sender", "text", { flags: 0x20 }, callbacks.add(done));
+            };
+            var done = function(err) {
+                assertFalsy(err);
+            };
+            this._setUp(callbacks.add(connect));
+        });
+    },
 
-        testSignalHandler: function(queue) {
-            queue.call(function(callbacks) {
-                    var onNameOwnerChanged = callbacks.add(function(context, name, oldOwner, newOwner) {
-                            assertEquals("NameOwnerChanged", context.memberName);
-                        });
-                    assertEquals(0, bus.connect());
-                    assertEquals(0, bus.registerSignalHandler(onNameOwnerChanged, "org.freedesktop.DBus.NameOwnerChanged"));
-                    
-                    /* This will cause a NameOwnerChanged signal to be fired. */
-                    otherBus = new alljoyn.BusAttachment();
-                    assertEquals(0, otherBus.connect());
+    testReplaceSignalHandler: function(queue) {
+        queue.call(function(callbacks) {
+            var busObject = {
+                "org.alljoyn.bus.PlayerState": {}
+            };
+            var connect = function(err) {
+                bus.connect(callbacks.add(createInterface));
+            };
+            var createInterface = function(err) {
+                assertFalsy(err);
+                bus.createInterface({
+                    name: "org.alljoyn.bus.PlayerState",
+                    signal: [
+                        { name: "PlayerPosition", signature: "uuu", argNames: "x,y,rotation" },
+                    ]
+                }, callbacks.add(registerBusObject));
+            };
+            var registerBusObject = function(err) {
+                assertFalsy(err);
+                bus.registerBusObject("/game/player", busObject, callbacks.add(registerSignalHandler));
+            };
+            var registerSignalHandler = function(err) {
+                assertFalsy(err);
+                var signalled = 0;
+                var onPlayerPosition = callbacks.add(function(context, x, y, rotation) {
+                    if (++signalled === 1) {
+                        /* Delay to ensure that a second signal doesn't arrive. */
+                        setTimeout(completeTest, 250);
+                    }
                 });
-        },
+                var completeTest = callbacks.add(function() {
+                    assertEquals(1, signalled);
+                });
+                bus.registerSignalHandler(onPlayerPosition, "org.alljoyn.bus.PlayerState.PlayerPosition", "/game/player", callbacks.add(function(err) {
+                    assertFalsy(err);
+                    bus.registerSignalHandler(onPlayerPosition, "org.alljoyn.bus.PlayerState.PlayerPosition", "/game/player", callbacks.add(emitSignal));
+                }));
+            };
+            var emitSignal = function(err) {
+                assertFalsy(err);
+                busObject.signal("org.alljoyn.bus.PlayerState", "PlayerPosition", 100, 200, 300, callbacks.add(done));
+            };
+            var done = function(err) {
+                assertFalsy(err);
+            };
+            this._setUp(callbacks.add(connect));
+        });
+    },
+    
+    testSignalSourcepath: function(queue) {
+        queue.call(function(callbacks) {
+            var player0 = {
+                "org.alljoyn.bus.PlayerState": {}
+            };
+            var player1 = {
+                "org.alljoyn.bus.PlayerState": {}
+            };
+            var connect = function(err) {
+                bus.connect(callbacks.add(createInterface));
+            };
+            var createInterface = function(err) {
+                assertFalsy(err);
+                bus.createInterface({
+                    name: "org.alljoyn.bus.PlayerState",
+                    signal: [
+                        { name: "PlayerPosition", signature: "uuu", argNames: "x,y,rotation" },
+                    ]
+                }, callbacks.add(registerBusObject));
+            };
+            var registerBusObject = function(err) {
+                assertFalsy(err);
+                bus.registerBusObject("/game/player0", player0, callbacks.add(function(err) {
+                    assertFalsy(err);
+                    bus.registerBusObject("/game/player1", player1, callbacks.add(registerSignalHandler));
+                }));
+            };
+            var onPlayerPosition = callbacks.add(function(context, x, y, rotation) {
+                assertEquals("/game/player0", context.objectPath);
+            });
+            var registerSignalHandler = function(err) {
+                assertFalsy(err);
+                bus.registerSignalHandler(onPlayerPosition, "org.alljoyn.bus.PlayerState.PlayerPosition", "/game/player0", callbacks.add(function(err) {
+                    assertFalsy(err);
+                    bus.registerSignalHandler(onPlayerPosition, "org.alljoyn.bus.PlayerState.PlayerPosition", "/game/player1", callbacks.add(unregisterSignalHandler));
+                }));
+            };
+            var unregisterSignalHandler = function(err) {
+                assertFalsy(err);
+                bus.unregisterSignalHandler(onPlayerPosition, "org.alljoyn.bus.PlayerState.PlayerPosition", "/game/player1", callbacks.add(emitSignal));
+            };
+            var emitSignal = function(err) {
+                assertFalsy(err);
+                player0.signal("org.alljoyn.bus.PlayerState", "PlayerPosition", 100, 200, 300, callbacks.add(function(err) {
+                    assertFalsy(err);
+                    player1.signal("org.alljoyn.bus.PlayerState", "PlayerPosition", 400, 500, 600, callbacks.add(done));
+                }));
+            };
+            var done = function(err) {
+                assertFalsy(err);
+            };
+            this._setUp(callbacks.add(connect));
+        });
+    },
 
-        testSameHandlerDifferentSignals: function(queue) {
-            queue.call(function(callbacks) {
-                    assertEquals(0, bus.connect());
-                    bus.interfaces["org.alljoyn.bus.PlayerState"] = {
-                        signal: [
-                            { name: "PlayerPosition", signature: "uuu", argNames: "x,y,rotation" },
-                            { name: "PlayerVelocity", signature: "ii", argNames: "dx,xy" }
-                        ]
+    testEnumerateProxyBusObjects: function(queue) {
+        var path = {};
+        queue.call(function(callbacks) {
+            var onIntrospect = function(proxyObj) {
+                return callbacks.add(function(err) {
+                    assertFalsy(err);
+                    path[proxyObj.path] = true;
+                    var introspectChild = function(err, children) {
+                        assertFalsy(err);
+                        for (var i = 0; i < children.length; ++i) {
+                            children[i].introspect(onIntrospect(children[i]));
+                        }
                     };
-                    bus["/game/player"] = {
-                        "org.alljoyn.bus.PlayerState": {}
-                    };
-                    var signal = {};
-                    var onPlayer = callbacks.add(function(context) {
-                            signal[context.memberName] = true;
-                            if (signal.PlayerPosition && signal.PlayerVelocity) {
-                                assertTrue(true);
-                            }
-                        }, 2);
-                    assertEquals(0, bus.registerSignalHandler(onPlayer, "org.alljoyn.bus.PlayerState.PlayerPosition"));
-                    assertEquals(0, bus.registerSignalHandler(onPlayer, "org.alljoyn.bus.PlayerState.PlayerVelocity"));
-                    
-                    bus["/game/player"]["org.alljoyn.bus.PlayerState"].PlayerPosition(100, 200, 300);
-                    bus["/game/player"]["org.alljoyn.bus.PlayerState"].PlayerVelocity(+30, -40);
+                    proxyObj.getChildren(callbacks.add(introspectChild));
                 });
-        },
+            };
 
-        testBroadcastSignal: function(queue) {
-            queue.call(function(callbacks) {
-                    assertEquals(0, bus.connect());
-                    bus.interfaces["org.alljoyn.bus.samples.aroundme.chat"] = {
-                        signal: [
-                            { name: 'Chat', signature: 'ss', argNames: 'sender,text' }
-                        ]
-                    };
-                    bus["/chatService"] = {
-                        "org.alljoyn.bus.samples.aroundme.chat": {}
-                    };
-                    
-                    var onChat = callbacks.add(function(context, sender, text) {
-                            assertEquals(32, context.flags);
-                        });
-                    assertEquals(0, bus.registerSignalHandler(onChat, "org.alljoyn.bus.samples.aroundme.chat.Chat"));
-                    bus["/chatService"]["org.alljoyn.bus.samples.aroundme.chat"].Chat("sender", "text", { flags: 0x20 });
-                });
-        },
+            var connect = function(err) {
+                bus.connect(callbacks.add(getProxyObj));
+            };
+            var getProxyObj = function(err) {
+                assertFalsy(err);
+                bus.getProxyBusObject(bus.uniqueName + "/", callbacks.add(introspect));
+            };
+            var introspect = function(err, proxyObj) {
+                assertFalsy(err);
+                proxyObj.introspect(onIntrospect(proxyObj));
+            };
+            this._setUp(callbacks.add(connect));
+        });
+        queue.call(function(callbacks) {
+            assertTrue(path["/"]);
+            assertTrue(path["/org"]);
+            assertTrue(path["/org/alljoyn"]);
+            assertTrue(path["/org/alljoyn/Bus"]);
+            assertTrue(path["/org/alljoyn/Bus/Peer"]);
+        });
+    },
 
-        testReplaceSignalHandler: function(queue) {
-            queue.call(function(callbacks) {
-                    assertEquals(0, bus.connect());
-                    bus.interfaces["org.alljoyn.bus.PlayerState"] = {
-                        signal: [
-                            { name: "PlayerPosition", signature: "uuu", argNames: "x,y,rotation" },
-                        ]
-                    };
-                    bus["/game/player"] = {
-                        "org.alljoyn.bus.PlayerState": {}
-                    };
-                    var signalled = 0;
-                    var onPlayerPosition = callbacks.add(function(context, x, y, rotation) {
-                            if (++signalled === 1) {
-                                /* Delay to ensure that a second signal doesn't arrive. */
-                                setTimeout(completeTest, 250);
-                            }
-                        });
-                    var completeTest = callbacks.add(function() {
-                            assertEquals(1, signalled);
-                        });
-                    assertEquals(0, bus.registerSignalHandler(onPlayerPosition, "org.alljoyn.bus.PlayerState.PlayerPosition", "/game/player"));
-                    assertEquals(0, bus.registerSignalHandler(onPlayerPosition, "org.alljoyn.bus.PlayerState.PlayerPosition", "/game/player"));
-                    
-                    bus["/game/player"]["org.alljoyn.bus.PlayerState"].PlayerPosition(100, 200, 300);
-                });
-        },
-        
-        testSignalSourcepath: function(queue) {
-            queue.call(function(callbacks) {
-                    assertEquals(0, bus.connect());
-                    bus.interfaces["org.alljoyn.bus.PlayerState"] = {
-                        signal: [
-                            { name: "PlayerPosition", signature: "uuu", argNames: "x,y,rotation" }
-                        ]
-                    };
-                    bus["/game/player0"] = {
-                        "org.alljoyn.bus.PlayerState": {}
-                    };
-                    bus["/game/player1"] = {
-                        "org.alljoyn.bus.PlayerState": {}
-                    };
-                    var onPlayerPosition = callbacks.add(function(context, x, y, rotation) {
-                            assertEquals("/game/player0", context.objectPath);
-                        });
-                    assertEquals(0, bus.registerSignalHandler(onPlayerPosition, "org.alljoyn.bus.PlayerState.PlayerPosition", "/game/player0"));
-                    assertEquals(0, bus.registerSignalHandler(onPlayerPosition, "org.alljoyn.bus.PlayerState.PlayerPosition", "/game/player1"));
-                    
-                    assertEquals(0, bus.unregisterSignalHandler(onPlayerPosition, "org.alljoyn.bus.PlayerState.PlayerPosition", "/game/player1"));
-                    
-                    bus["/game/player0"]["org.alljoyn.bus.PlayerState"].PlayerPosition(100, 200, 300);
-                    bus["/game/player1"]["org.alljoyn.bus.PlayerState"].PlayerPosition(400, 500, 600);
-                });
-        },
-
-        testEnumerateProxyBusObjects: function(queue) {
-            var path = {};
-            queue.call(function(callbacks) {
-                    var onErr = callbacks.addErrback(onError);
-                    var onIntrospect = function(proxy) {
-                        return callbacks.add(function() {
-                                path[proxy.path] = true;
-                                for (var child in proxy.children) {
-                                    var childProxy = proxy.children[child];
-                                    childProxy.introspect(onIntrospect(childProxy), onErr);
-                                }
-                            });
-                    };
-                    assertEquals(0, bus.connect());
-                    var proxy = bus.proxy[bus.uniqueName + "/"];
-                    proxy.introspect(onIntrospect(proxy), onErr);
-                });
-            queue.call(function(callbacks) {
-                    assertTrue(path["/"]);
-                    assertTrue(path["/org"]);
-                    assertTrue(path["/org/alljoyn"]);
-                    assertTrue(path["/org/alljoyn/Bus"]);
-                    assertTrue(path["/org/alljoyn/Bus/Peer"]);
-                });
-        },
-
-    });
+});
 

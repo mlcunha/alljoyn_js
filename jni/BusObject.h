@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Qualcomm Innovation Center, Inc.
+ * Copyright 2011-2012, Qualcomm Innovation Center, Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@ class _BusObject : public ajn::BusObject {
     void SetBusObjectListener(_BusObjectListener* busObjectListener) {
         this->busObjectListener = busObjectListener;
     }
+    BusAttachment busAttachment;
 
     QStatus AddInterface(const ajn::InterfaceDescription& iface) {
         return ajn::BusObject::AddInterface(iface);
@@ -61,7 +62,6 @@ class _BusObject : public ajn::BusObject {
     }
 
   private:
-    BusAttachment busAttachment;
     _BusObjectListener* busObjectListener;
 
     virtual QStatus Get(const char* ifcName, const char* propName, ajn::MsgArg& val) {

@@ -14,164 +14,249 @@
  *    limitations under the License.
  */
 AsyncTestCase("ConstantsTest", {
-        setUp: function() {
-            /*:DOC += <object id="alljoyn" type="application/x-alljoyn"/> */
-            alljoyn = document.getElementById("alljoyn");
-            bus = new alljoyn.BusAttachment();
-            otherBus = undefined;
-        },
-        tearDown: function() {
-            /*
-             * We don't know when the gc will run, so explicitly disconnect to ensure that there is
-             * no interference between tests (particularly signal handlers).
-             */
-            if (otherBus) {
-                assertEquals(0, otherBus.disconnect());
-                otherBus = undefined;
-            }
-            assertEquals(0, bus.disconnect());
-        },
+    _setUp: ondeviceready(function(callback) {
+        otherBus = undefined;
+        bus = new org.alljoyn.bus.BusAttachment();
+        bus.create(false, callback);
+    }),
+    tearDown: function() {
+        otherBus && otherBus.destroy();
+        bus.destroy();
+    },
 
-        testBusAttachment: function() {
-            assertEquals(1, alljoyn.BusAttachment.DBUS_NAME_FLAG_ALLOW_REPLACEMENT);
-            assertEquals(1, bus.DBUS_NAME_FLAG_ALLOW_REPLACEMENT);
-        },
+    testBusAttachment: function(queue) {
+        queue.call(function(callbacks) {
+            var done = function(err) {
+                assertFalsy(err);
+                assertEquals(1, org.alljoyn.bus.BusAttachment.DBUS_NAME_FLAG_ALLOW_REPLACEMENT);
+                assertEquals(1, bus.DBUS_NAME_FLAG_ALLOW_REPLACEMENT);
+            };
+            this._setUp(callbacks.add(done));
+        });
+    },
 
-        testMessage: function(queue) {
-            assertEquals(1, alljoyn.Message.ALLJOYN_FLAG_NO_REPLY_EXPECTED);
-            queue.call(function(callbacks) {
-                    bus.interfaces["org.alljoyn.bus.samples.simple.SimpleInterface"] = {
-                        method: [
-                            { name: 'Ping', signature: 's', returnSignature: 's', argNames: 'inStr,outStr' }
-                        ]
-                    };
-                    bus["/testobject"] = {
-                        "org.alljoyn.bus.samples.simple.SimpleInterface": {
-                            Ping: function(context, inStr) { 
-                                assertEquals(1, context.ALLJOYN_FLAG_NO_REPLY_EXPECTED);
-                                assertEquals(0, context.reply(inStr));
-                            }
-                        }
-                    };
-                    assertEquals(0, bus.connect());
-
-                    var onErr = callbacks.addErrback(onError);
-                    var onPing = callbacks.add(function(context, outStr) {
+    testMessage: function(queue) {
+        assertEquals(1, org.alljoyn.bus.Message.ALLJOYN_FLAG_NO_REPLY_EXPECTED);
+        queue.call(function(callbacks) {
+            var createInterface = function(err) {
+                assertFalsy(err);
+                bus.createInterface({
+                    name: "org.alljoyn.bus.samples.simple.SimpleInterface",
+                    method: [
+                        { name: 'Ping', signature: 's', returnSignature: 's', argNames: 'inStr,outStr' }
+                    ]
+                }, callbacks.add(registerBusObject));
+            };
+            var registerBusObject = function(err) {
+                assertFalsy(err);
+                bus.registerBusObject("/testobject", {
+                    "org.alljoyn.bus.samples.simple.SimpleInterface": {
+                        Ping: function(context, inStr) { 
                             assertEquals(1, context.ALLJOYN_FLAG_NO_REPLY_EXPECTED);
-                        });
-                    var testobject = bus.proxy[bus.uniqueName + "/testobject"];
-                    testobject["org.alljoyn.bus.samples.simple.SimpleInterface"].Ping(onPing, onErr, "hello");
-                });
-        },
-
-        testSessionOpts: function(queue) {
-            assertEquals(1, alljoyn.SessionOpts.TRAFFIC_MESSAGES);
-            queue.call(function(callbacks) {
-                    otherBus = new alljoyn.BusAttachment();
-                    assertEquals(0, otherBus.connect());
-                    var onAccept = callbacks.add(function(port, joiner, opts) {
-                            assertEquals(1, opts.TRAFFIC_MESSAGES);            
-                            return true;
-                        });
-                    var sessionOpts = { onAccept: onAccept };
-                    assertEquals(0, otherBus.bindSessionPort(sessionOpts));
-
-                    assertEquals(0, bus.connect());
-                    var onJoinSession = callbacks.add(function(id, opts) {
-                            assertEquals(1, opts.TRAFFIC_MESSAGES);            
-                            assertEquals(0, bus.leaveSession(id));
-                        });
-                    var onErr = callbacks.addErrback(onError);
-                    assertEquals(0, bus.joinSession(onJoinSession, onErr, { host: otherBus.uniqueName,
-                                                                            port: sessionOpts.port }));
-                });
-        },
-
-        testBusError: function(queue) {
-            assertEquals(1, alljoyn.BusError.FAIL);
-            queue.call(function(callbacks) {
-                    bus.interfaces["org.alljoyn.bus.samples.simple.SimpleInterface"] = {
-                        method: [
-                            { name: 'Ping', signature: 's', returnSignature: 's', argNames: 'inStr,outStr' }
-                        ]
-                    };
-                    bus["/testobject"] = {
-                        "org.alljoyn.bus.samples.simple.SimpleInterface": {
-                            Ping: function(context, inStr) { 
-                                assertEquals(0, context.replyError("org.alljoyn.bus.samples.simple.Error"));
-                            }
+                            context.reply(inStr);
                         }
-                    };
-                    assertEquals(0, bus.connect());
+                    }
+                }, callbacks.add(connect));
+            };
+            var connect = function(err) {
+                assertFalsy(err);
+                bus.connect(callbacks.add(getProxyObj));
+            };
+            var getProxyObj = function(err) {
+                assertFalsy(err);
+                bus.getProxyBusObject(bus.uniqueName + "/testobject", callbacks.add(ping));
+            };
+            var ping = function(err, testobject) {
+                assertFalsy(err);
+                testobject.methodCall("org.alljoyn.bus.samples.simple.SimpleInterface", "Ping", "hello", callbacks.add(onPing));
+            };
+            var onPing = function(err, context, outStr) {
+                assertFalsy(err);
+                assertEquals(1, context.ALLJOYN_FLAG_NO_REPLY_EXPECTED);
+            };
+            this._setUp(callbacks.add(createInterface));
+        });
+    },
 
-                    var onErr = callbacks.add(function(error) {
-                            assertEquals(1, error.FAIL);
-                        });
-                    var onPing = callbacks.addErrback(function(context, outStr) {});
-                    var testobject = bus.proxy[bus.uniqueName + "/testobject"];
-                    testobject["org.alljoyn.bus.samples.simple.SimpleInterface"].Ping(onPing, onErr, "hello");
-                });
-        },
+    testSessionOpts: function(queue) {
+        assertEquals(1, org.alljoyn.bus.SessionOpts.TRAFFIC_MESSAGES);
+        queue.call(function(callbacks) {
+            var otherBusCreate = function(err) {
+                assertFalsy(err);
+                otherBus = new org.alljoyn.bus.BusAttachment();
+                otherBus.create(false, callbacks.add(otherBusConnect));
+            };
+            var otherBusConnect = function(err) {
+                assertFalsy(err);
+                otherBus.connect(callbacks.add(otherBusBindSessionPort));
+            };
+            var onAccept = callbacks.add(function(port, joiner, opts) {
+                assertEquals(1, opts.TRAFFIC_MESSAGES);            
+                return true;
+            });
+            var sessionOpts = { onAccept: onAccept };
+            var otherBusBindSessionPort = function(err) {
+                assertFalsy(err);
+                otherBus.bindSessionPort(sessionOpts, callbacks.add(connect));
+            };
+            var connect = function(err, port) {
+                assertFalsy(err);
+                sessionOpts.port = port;
+                bus.connect(callbacks.add(joinSession));
+            };
+            var joinSession = function(err) {
+                assertFalsy(err);
+                bus.joinSession({ host: otherBus.uniqueName,
+                                  port: sessionOpts.port }, callbacks.add(onJoinSession));
+            };
+            var onJoinSession = function(err, id, opts) {
+                assertFalsy(err);
+                assertEquals(1, opts.TRAFFIC_MESSAGES);            
+                bus.leaveSession(id, callbacks.add(done));
+            };
+            var done = function(err) {
+                assertFalsy(err);
+            };
+            this._setUp(callbacks.add(otherBusCreate));
+        });
+    },
 
-        testCredentials: function(queue) {
-            assertEquals(0x0001, alljoyn.Credentials.PASSWORD);
-            assertEquals(0x0020, alljoyn.Credentials.EXPIRATION);
-            queue.call(function(callbacks) {
-                    bus.interfaces["test.SecureInterface"] = {
-                        secure: true,
-                        method: [ { name: 'Ping', signature: 's', returnSignature: 's' } ]
-                    };
-                    bus["/test"] = {
-                        "test.SecureInterface": {
-                            Ping: function(context, inStr) { context.reply(inStr); }
+    testBusError: function(queue) {
+        assertEquals(1, org.alljoyn.bus.BusError.FAIL);
+        queue.call(function(callbacks) {
+            var createInterface = function(err) {
+                assertFalsy(err);
+                bus.createInterface({
+                    name: "org.alljoyn.bus.samples.simple.SimpleInterface", 
+                    method: [
+                        { name: 'Ping', signature: 's', returnSignature: 's', argNames: 'inStr,outStr' }
+                    ]
+                }, callbacks.add(registerBusObject));
+            };
+            var registerBusObject = function(err) {
+                assertFalsy(err);
+                bus.registerBusObject("/testobject", {
+                    "org.alljoyn.bus.samples.simple.SimpleInterface": {
+                        Ping: function(context, inStr) { 
+                            context.replyError("org.alljoyn.bus.samples.simple.Error");
                         }
-                    };
-                    assertEquals(0, bus.enablePeerSecurity("ALLJOYN_SRP_LOGON", {
-                                onRequest: callbacks.add(function(authMechanism, peerName, authCount, 
-                                                                           userName, credMask, credentials) {
-                                        assertEquals("ALLJOYN_SRP_LOGON", authMechanism);
-                                        assertEquals(otherBus.uniqueName, peerName);
-                                        assertEquals(1, authCount);
-                                        assertEquals("userName", userName);
-                                        assertEquals((credentials.LOGON_ENTRY | credentials.PASSWORD), credMask);
-                                        assertEquals(0x0020, credentials.EXPIRATION);
-                                        credentials.password = "password";
-                                        return true;
-                                    }),
-                                onComplete: callbacks.add(function(authMechanism, peerName, success) {
-                                        assertEquals("ALLJOYN_SRP_LOGON", authMechanism);
-                                        assertEquals(otherBus.uniqueName, peerName);
-                                        assertTrue(success);
-                                    })
-                                }));
-                    bus.clearKeyStore();
-                    assertEquals(0, bus.connect());
+                    }
+                }, callbacks.add(connect));
+            };
+            var connect = function(err) {
+                assertFalsy(err);
+                bus.connect(callbacks.add(getProxyBusObject));
+            };
+            var getProxyBusObject = function(err) {
+                assertFalsy(err);
+                bus.getProxyBusObject(bus.uniqueName + "/testobject", callbacks.add(ping));
+            };
+            var ping = function(err, testobject) {
+                assertFalsy(err);
+                testobject.methodCall("org.alljoyn.bus.samples.simple.SimpleInterface", "Ping", "hello", callbacks.add(onPing));
+            };
+            var onPing = function(err, context, outStr) {
+                assertEquals(1, err.FAIL);
+            };
+            this._setUp(callbacks.add(createInterface));
+        });
+    },
 
-                    otherBus = new alljoyn.BusAttachment();
-                    assertEquals(0, otherBus.enablePeerSecurity("ALLJOYN_SRP_LOGON", {
-                                onRequest: callbacks.add(function(authMechanism, peerName, authCount, 
-                                                                           userName, credMask, credentials) {
-                                        assertEquals("ALLJOYN_SRP_LOGON", authMechanism);
-                                        assertEquals(bus.uniqueName, peerName);
-                                        assertEquals(1, authCount);
-                                        assertEquals((credentials.PASSWORD | credentials.USER_NAME), credMask);
-                                        credentials.userName = "userName";
-                                        credentials.password = "password";
-                                        return true;
-                                    }),
-                                onComplete: callbacks.add(function(authMechanism, peerName, success) {
-                                        assertEquals("ALLJOYN_SRP_LOGON", authMechanism);
-                                        assertEquals(bus.uniqueName, peerName);
-                                        assertTrue(success);
-                                    })
-                                }));
-                    otherBus.clearKeyStore();
-                    assertEquals(0, otherBus.connect());
-
-                    var onPing = callbacks.add(function(context, outStr) {});
-                    var onErr = callbacks.addErrback(onError);
-                    otherBus.proxy[bus.uniqueName + "/test"]["test.SecureInterface"].Ping(onPing, onErr, "pong");
-                });
-        },
-    });
+    testCredentials: function(queue) {
+        assertEquals(0x0001, org.alljoyn.bus.Credentials.PASSWORD);
+        assertEquals(0x0020, org.alljoyn.bus.Credentials.EXPIRATION);
+        queue.call(function(callbacks) {
+            var createInterface = function(err) {
+                assertFalsy(err);
+                bus.createInterface({
+                    name: "test.SecureInterface",
+                    secure: true,
+                    method: [ { name: 'Ping', signature: 's', returnSignature: 's' } ]
+                }, callbacks.add(registerBusObject));
+            };
+            var registerBusObject = function(err) {
+                assertFalsy(err);
+                bus.registerBusObject("/test", {
+                    "test.SecureInterface": {
+                        Ping: function(context, inStr) { context.reply(inStr); }
+                    }
+                }, callbacks.add(enablePeerSecurity));
+            };
+            var enablePeerSecurity = function(err) {
+                assertFalsy(err);
+                bus.enablePeerSecurity("ALLJOYN_SRP_LOGON", {
+                    onRequest: callbacks.add(function(authMechanism, peerName, authCount, 
+                                                      userName, credMask, credentials) {
+                        assertEquals("ALLJOYN_SRP_LOGON", authMechanism);
+                        assertEquals(otherBus.uniqueName, peerName);
+                        assertEquals(1, authCount);
+                        assertEquals("userName", userName);
+                        assertEquals((credentials.LOGON_ENTRY | credentials.PASSWORD), credMask);
+                        assertEquals(0x0020, credentials.EXPIRATION);
+                        credentials.password = "password";
+                        return true;
+                    }),
+                    onComplete: callbacks.add(function(authMechanism, peerName, success) {
+                        assertEquals("ALLJOYN_SRP_LOGON", authMechanism);
+                        assertEquals(otherBus.uniqueName, peerName);
+                        assertTrue(success);
+                    })
+                }, callbacks.add(clearKeyStore));
+            };
+            var clearKeyStore = function(err) {
+                assertFalsy(err);
+                bus.clearKeyStore(callbacks.add(connect));
+            };
+            var connect = function(err) {
+                assertFalsy(err);
+                bus.connect(callbacks.add(otherBusCreate));
+            };
+            var otherBusCreate = function(err) {
+                assertFalsy(err);
+                otherBus = new org.alljoyn.bus.BusAttachment();
+                otherBus.create(false, callbacks.add(otherBusEnablePeerSecurity));
+            };
+            var otherBusEnablePeerSecurity = function(err) {
+                assertFalsy(err);
+                otherBus.enablePeerSecurity("ALLJOYN_SRP_LOGON", {
+                    onRequest: callbacks.add(function(authMechanism, peerName, authCount, 
+                                                      userName, credMask, credentials) {
+                        assertEquals("ALLJOYN_SRP_LOGON", authMechanism);
+                        assertEquals(bus.uniqueName, peerName);
+                        assertEquals(1, authCount);
+                        assertEquals((credentials.PASSWORD | credentials.USER_NAME), credMask);
+                        credentials.userName = "userName";
+                        credentials.password = "password";
+                        return true;
+                    }),
+                    onComplete: callbacks.add(function(authMechanism, peerName, success) {
+                        assertEquals("ALLJOYN_SRP_LOGON", authMechanism);
+                        assertEquals(bus.uniqueName, peerName);
+                        assertTrue(success);
+                    })
+                }, callbacks.add(otherBusClearKeyStore));
+            };
+            var otherBusClearKeyStore = function(err) {
+                assertFalsy(err);
+                otherBus.clearKeyStore(callbacks.add(otherBusConnect));
+            };
+            var otherBusConnect = function(err) {
+                assertFalsy(err);
+                otherBus.connect(callbacks.add(otherBusGetProxyBusObject));
+            };
+            var otherBusGetProxyBusObject = function(err) {
+                assertFalsy(err);
+                otherBus.getProxyBusObject(bus.uniqueName + "/test", callbacks.add(ping));
+            };
+            var ping = function(err, proxy) {
+                assertFalsy(err);
+                proxy.methodCall("test.SecureInterface", "Ping", "pong", callbacks.add(done));
+            };
+            var done = function(err, context, outStr) {
+                assertFalsy(err);
+            };
+            this._setUp(callbacks.add(createInterface));
+        });
+    },
+});
 

@@ -14,68 +14,84 @@
  *    limitations under the License.
  */
 AsyncTestCase("PropsTest", {
-        setUp: function() {
-            /*:DOC += <object id="alljoyn" type="application/x-alljoyn"/> */
-            alljoyn = document.getElementById("alljoyn");
-            bus = new alljoyn.BusAttachment();
-        },
-        tearDown: function() {
-            /*
-             * We don't know when the gc will run, so explicitly disconnect to ensure that there is
-             * no interference between tests (particularly signal handlers).
-             */
-            assertEquals(0, bus.disconnect());
-        },
+    _setUp: ondeviceready(function(callback) {
+        bus = new org.alljoyn.bus.BusAttachment();
+        bus.create(false, callback);
+    }),
+    tearDown: function() {
+        bus.destroy();
+    },
 
-        testProps: function(queue) {
-            queue.call(function(callbacks) {
-                    assertEquals(0, bus.connect());
-                    bus.interfaces["org.alljoyn.bus.PropsInterface"] = {
-                        property: [
-                            { name: "StringProp", signature: "s", access: "readwrite" },
-                            { name: "IntProp", signature: "i", access: "readwrite" }
-                        ]
+    testProps: function(queue) {
+        queue.call(function(callbacks) {
+            var connect = function(err) {
+                assertFalsy(err);
+                bus.connect(callbacks.add(createInterface));
+            };
+            var createInterface = function(err) {
+                assertFalsy(err);
+                bus.createInterface({
+                    name: "org.alljoyn.bus.PropsInterface",
+                    property: [
+                        { name: "StringProp", signature: "s", access: "readwrite" },
+                        { name: "IntProp", signature: "i", access: "readwrite" }
+                    ]
+                }, callbacks.add(registerBusObject));
+            };
+            var registerBusObject = function(err) {
+                assertFalsy(err);
+                bus.registerBusObject("/testProperties", function() {
+                    var stringProp = "Hello";
+                    var intProp = 6;
+                    return {
+                        "org.alljoyn.bus.PropsInterface": {
+                            get StringProp() { return stringProp; },
+                            set StringProp(value) { stringProp = value; },
+                            get IntProp() { return intProp; },
+                            set IntProp(value) { intProp = value; }
+                        }
                     };
-                    bus["/testProperties"] = function() {
-                        var stringProp = "Hello";
-                        var intProp = 6;
-                        return {
-                            "org.alljoyn.bus.PropsInterface": {
-                                get StringProp() { return stringProp; },
-                                set StringProp(value) { stringProp = value; },
-                                get IntProp() { return intProp; },
-                                set IntProp(value) { intProp = value; }
-                            }
-                        };
-                    }();
-                    var proxy;
-                    var onErr = callbacks.addErrback(onError);
-                    var onRequestName = callbacks.add(function(context, result) {
-                            assertEquals(1, result);
-                            var testProperties = bus.proxy["org.alljoyn.bus.samples.props/testProperties"];
-                            proxy = testProperties["org.freedesktop.DBus.Properties"];
-                            
-                            proxy.Get(onGetStringProp, onErr, "org.alljoyn.bus.PropsInterface", "StringProp");
-                        });
-                    var onGetStringProp = callbacks.add(function(context, value) {
-                            assertEquals("Hello", value);
-                            proxy.Set(onSetStringProp, onErr, 
-                                      "org.alljoyn.bus.PropsInterface", "StringProp", { "s": "MyNewValue" });
-                        });
-                    var onSetStringProp = callbacks.add(function(context) {
-                            proxy.Get(onGetIntProp, onErr, "org.alljoyn.bus.PropsInterface", "IntProp");
-                        });
-                    var onGetIntProp = callbacks.add(function(context, value) {
-                            assertEquals(6, value);
-                            proxy.GetAll(onGetAll, onErr, "org.alljoyn.bus.PropsInterface");
-                        });
-                    var onGetAll = callbacks.add(function(context, values) {
-                            assertEquals("MyNewValue", values.StringProp);
-                            assertEquals(6, values.IntProp);
-                        });
-                    var dbus = bus.proxy["org.freedesktop.DBus/org/freedesktop/DBus"];
-                    dbus["org.freedesktop.DBus"].RequestName(onRequestName, onErr, 
-                                                             "org.alljoyn.bus.samples.props", 0);
-                });
-        }
-    });
+                }(), callbacks.add(getDbus));
+            };
+            var getDbus = function(err) {
+                assertFalsy(err);
+                bus.getProxyBusObject("org.freedesktop.DBus/org/freedesktop/DBus", callbacks.add(requestName));
+            };
+            var requestName = function(err, dbus) {
+                assertFalsy(err);
+                dbus.methodCall("org.freedesktop.DBus", "RequestName", "org.alljoyn.bus.samples.props", 0, callbacks.add(onRequestName));
+            };
+            var onRequestName = function(err, context, result) {
+                assertFalsy(err);
+                assertEquals(1, result);
+                bus.getProxyBusObject("org.alljoyn.bus.samples.props/testProperties", callbacks.add(get));
+            };
+            var proxy;
+            var get = function(err, proxyObj) {
+                assertFalsy(err);
+                proxy = proxyObj;
+                proxy.methodCall("org.freedesktop.DBus.Properties", "Get", "org.alljoyn.bus.PropsInterface", "StringProp", callbacks.add(onGetStringProp));
+            };
+            var onGetStringProp = function(err, context, value) {
+                assertFalsy(err);
+                assertEquals("Hello", value);
+                proxy.methodCall("org.freedesktop.DBus.Properties", "Set", "org.alljoyn.bus.PropsInterface", "StringProp", { "s": "MyNewValue" }, callbacks.add(onSetStringProp));
+            };
+            var onSetStringProp = function(err, context) {
+                assertFalsy(err);
+                proxy.methodCall("org.freedesktop.DBus.Properties", "Get", "org.alljoyn.bus.PropsInterface", "IntProp", callbacks.add(onGetIntProp));
+            };
+            var onGetIntProp = function(err, context, value) {
+                assertFalsy(err);
+                assertEquals(6, value);
+                proxy.methodCall("org.freedesktop.DBus.Properties", "GetAll", "org.alljoyn.bus.PropsInterface", callbacks.add(onGetAll));
+            };
+            var onGetAll = function(err, context, values) {
+                assertFalsy(err);
+                assertEquals("MyNewValue", values.StringProp);
+                assertEquals(6, values.IntProp);
+            };
+            this._setUp(callbacks.add(connect));
+        });
+    }
+});

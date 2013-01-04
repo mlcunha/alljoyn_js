@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Qualcomm Innovation Center, Inc.
+ * Copyright 2011-2013, Qualcomm Innovation Center, Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -23,7 +23,15 @@ class _VersionInterface : public ScriptableObject {
   public:
     _VersionInterface(Plugin& plugin);
     virtual ~_VersionInterface();
-    virtual bool Construct(const NPVariant* args, uint32_t argCount, NPVariant* result);
+
+  private:
+    bool getBuildInfo(NPVariant* result);
+    bool getNumericVersion(NPVariant* result);
+    bool getArch(NPVariant* result);
+    bool getApiLevel(NPVariant* result);
+    bool getRelease(NPVariant* result);
+    bool getVersion(NPVariant* result);
+    //bool toString(const NPVariant* args, uint32_t npargCount, NPVariant* result);
 };
 
 typedef qcc::ManagedObj<_VersionInterface> VersionInterface;

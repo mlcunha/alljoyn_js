@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Qualcomm Innovation Center, Inc.
+ * Copyright 2011-2012, Qualcomm Innovation Center, Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@
 
 #include "BusAttachment.h"
 #include "ProxyBusObject.h"
-#include "ProxyInterfaceHost.h"
 #include "ScriptableObject.h"
 #include <qcc/ManagedObj.h>
 class _ProxyBusObjectHostImpl;
@@ -28,26 +27,24 @@ class _ProxyBusObjectHost : public ScriptableObject {
     _ProxyBusObjectHost(Plugin& plugin, BusAttachment& busAttachment, const char* serviceName, const char* path, ajn::SessionId sessionId);
     _ProxyBusObjectHost(Plugin& plugin, BusAttachment& busAttachment, ajn::ProxyBusObject* proxyBusObject);
     virtual ~_ProxyBusObjectHost();
-    virtual bool HasProperty(const qcc::String& name);
 
   private:
     BusAttachment busAttachment;
     ProxyBusObject proxyBusObject;
     _ProxyBusObjectHostImpl* impl; /* Hide declaration of ProxyChildrenHost to get around recursive include. */
-    std::map<qcc::String, ProxyInterfaceHost> proxyInterfaces;
 
     void Initialize();
 
     bool getPath(NPVariant* result);
-    bool getChildren(NPVariant* result);
     bool getServiceName(NPVariant* result);
+    bool getSessionId(NPVariant* result);
 
+    bool getChildren(const NPVariant* args, uint32_t argCount, NPVariant* result);
+    bool getInterface(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool introspect(const NPVariant* args, uint32_t argCount, NPVariant* result);
+    bool methodCall(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool parseXML(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool secureConnection(const NPVariant* args, uint32_t argCount, NPVariant* result);
-
-    bool getProxyInterface(const qcc::String& name, NPVariant* result);
-    bool enumerateProxyInterfaces(NPIdentifier** value, uint32_t* count);
 };
 
 typedef qcc::ManagedObj<_ProxyBusObjectHost> ProxyBusObjectHost;

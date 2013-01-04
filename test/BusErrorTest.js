@@ -13,36 +13,41 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-TestCase("BusErrorTest", {
-        setUp: function() {
-            /*:DOC += <object id="alljoyn" type="application/x-alljoyn"/> */
-            alljoyn = document.getElementById("alljoyn");
-            bus = new alljoyn.BusAttachment();
-        },
-        tearDown: function() {
-            /*
-             * We don't know when the gc will run, so explicitly disconnect to ensure that there is
-             * no interference between tests (particularly signal handlers).
-             */
-            assertEquals(0, bus.disconnect());
-        },
+AsyncTestCase("BusErrorTest", {
+    _setUp: ondeviceready(function(callback) {
+        bus = new org.alljoyn.bus.BusAttachment();
+        bus.create(false, callback);
+    }),
+    tearDown: function() {
+        bus.destroy();
+    },
 
-        testBusError: function() {
-            try {
-                bus.nameHasOwner("test.foo");
-            } catch (err) {
-                assertEquals("BusError", alljoyn.BusError.name);
-                assertEquals(alljoyn.BusError.BUS_NOT_CONNECTED, alljoyn.BusError.code);
-            }
-        },
+    testBusError: function(queue) {
+        queue.call(function(callbacks) {
+            var nameHasOwner = function(err) {
+                assertFalsy(err);
+                bus.nameHasOwner("test.foo", callbacks.add(done));
+            };
+            var done = function(err, has) {
+                assertEquals("BusError", err.name);
+                assertEquals(org.alljoyn.bus.BusError.BUS_NOT_CONNECTED, err.code);
+            };
+            this._setUp(callbacks.add(nameHasOwner));
+        });
+    },
 
-        testTypeError: function() {
-            try {
-                bus.registerSignalHandler();
-            } catch (err) {
-                assertEquals("TypeError", alljoyn.BusError.name);
-                assertEquals("not enough arguments", alljoyn.BusError.message);
-            }
-        },
-    });
+    testTypeError: function(queue) {
+        queue.call(function(callbacks) {
+            var registerSignalHandler = function(err) {
+                try {
+                    bus.registerSignalHandler();
+                } catch (err) {
+                    assertEquals("TypeError", org.alljoyn.bus.BusError.name);
+                    assertEquals("not enough arguments", org.alljoyn.bus.BusError.message);
+                }
+            };
+            this._setUp(callbacks.add(registerSignalHandler));
+        });
+    },
+});
 

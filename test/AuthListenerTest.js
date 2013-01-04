@@ -14,216 +14,307 @@
  *    limitations under the License.
  */
 AsyncTestCase("AuthListenerTest", {
-        setUp: function() {
-            /*:DOC += <object id="alljoyn" type="application/x-alljoyn"/> */
-            alljoyn = document.getElementById("alljoyn");
-            bus = new alljoyn.BusAttachment();
-            bus.interfaces["test.SecureInterface"] = {
+    _setUp: ondeviceready(function(callback) {
+        bus = new org.alljoyn.bus.BusAttachment();
+        var createInterface = function(err) {
+            bus.createInterface({
+                name: "test.SecureInterface", 
                 secure: true,
                 method: [ { name: 'Ping', signature: 's', returnSignature: 's' } ]
-            };
-            bus["/test"] = {
+            }, registerBusObject);
+        };
+        var registerBusObject = function(err) {
+            bus.registerBusObject("/test", {
                 "test.SecureInterface": {
                     Ping: function(context, inStr) { context.reply(inStr); }
                 }
+            }, createOtherBus);
+        };
+        var createOtherBus = function(err) {
+            otherBus = new org.alljoyn.bus.BusAttachment();
+            otherBus.create(false, callback);
+        };
+        bus.create(false, createInterface);
+    }),
+    tearDown: function() {
+        bus.destroy();
+        otherBus.destroy();
+    },
+
+    testSrpKeyxPass: function(queue) {
+        queue.call(function(callbacks) {
+            var enablePeerSecurity = function(err) {
+                bus.enablePeerSecurity("ALLJOYN_SRP_KEYX", {
+                    onRequest: callbacks.add(function(authMechanism, peerName, authCount, 
+                                                      userName, credMask, credentials) {
+                        assertEquals("ALLJOYN_SRP_KEYX", authMechanism);
+                        assertEquals(otherBus.uniqueName, peerName);
+                        assertEquals(1, authCount);
+                        assertEquals(credentials.ONE_TIME_PWD, credMask);
+                        credentials.password = "123456";
+                        return true;
+                    }),
+                    onComplete: callbacks.add(function(authMechanism, peerName, success) {
+                        assertEquals("ALLJOYN_SRP_KEYX", authMechanism);
+                        assertEquals(otherBus.uniqueName, peerName);
+                        assertTrue(success);
+                    })
+                }, callbacks.add(clearKeyStore));
             };
-            otherBus = new alljoyn.BusAttachment();
-        },
-        tearDown: function() {
-            /*
-             * We don't know when the gc will run, so explicitly disconnect to ensure that there is
-             * no interference between tests (particularly signal handlers).
-             */
-            assertEquals(0, otherBus.disconnect());
-            assertEquals(0, bus.disconnect());
-        },
+            var clearKeyStore = function(err) {
+                assertFalsy(err);
+                bus.clearKeyStore(callbacks.add(connect));
+            };
+            var connect = function(err) {
+                assertFalsy(err);
+                bus.connect(callbacks.add(otherBusEnablePeerSecurity));
+            };
+            var otherBusEnablePeerSecurity = function(err) {
+                assertFalsy(err);
+                otherBus.enablePeerSecurity("ALLJOYN_SRP_KEYX", {
+                    onRequest: callbacks.add(function(authMechanism, peerName, authCount, 
+                                                      userName, credMask, credentials) {
+                        assertEquals("ALLJOYN_SRP_KEYX", authMechanism);
+                        assertEquals(bus.uniqueName, peerName);
+                        assertEquals(1, authCount);
+                        assertEquals(credentials.PASSWORD, credMask);
+                        credentials.password = "123456";
+                        return true;
+                    }),
+                    onComplete: callbacks.add(function(authMechanism, peerName, success) {
+                        assertEquals("ALLJOYN_SRP_KEYX", authMechanism);
+                        assertEquals(bus.uniqueName, peerName);
+                        assertTrue(success);
+                    })
+                }, callbacks.add(otherBusClearKeyStore));
+            };
+            var otherBusClearKeyStore = function(err) {
+                assertFalsy(err);
+                otherBus.clearKeyStore(callbacks.add(otherBusConnect));
+            };
+            var otherBusConnect = function(err) {
+                assertFalsy(err);
+                otherBus.connect(callbacks.add(getProxyObj));
+            };
+            var getProxyObj = function(err) {
+                assertFalsy(err);
+                otherBus.getProxyBusObject(bus.uniqueName + "/test", callbacks.add(ping));
+            };
+            var ping = function(err, proxyObj) {
+                assertFalsy(err);
+                proxyObj.methodCall("test.SecureInterface", "Ping", "pong", callbacks.add(done));
+            };
+            var done = function(err, context, outStr) {
+                assertFalsy(err);
+            };
+            this._setUp(callbacks.add(enablePeerSecurity));
+        });
+    },
 
-        testSrpKeyxPass: function(queue) {
-            queue.call(function(callbacks) {
-                    assertEquals(0, bus.enablePeerSecurity("ALLJOYN_SRP_KEYX", {
-                                onRequest: callbacks.add(function(authMechanism, peerName, authCount, 
-                                                                           userName, credMask, credentials) {
-                                        assertEquals("ALLJOYN_SRP_KEYX", authMechanism);
-                                        assertEquals(otherBus.uniqueName, peerName);
-                                        assertEquals(1, authCount);
-                                        assertEquals(credentials.ONE_TIME_PWD, credMask);
-                                        credentials.password = "123456";
-                                        return true;
-                                    }),
-                                onComplete: callbacks.add(function(authMechanism, peerName, success) {
-                                        assertEquals("ALLJOYN_SRP_KEYX", authMechanism);
-                                        assertEquals(otherBus.uniqueName, peerName);
-                                        assertTrue(success);
-                                    })
-                            }));
-                    bus.clearKeyStore();
-                    assertEquals(0, bus.connect());
+    testSrpKeyxFail: function(queue) {
+        queue.call(function(callbacks) {
+            var enablePeerSecurity = function(err) {
+                bus.enablePeerSecurity("ALLJOYN_SRP_KEYX", {
+                    onRequest: callbacks.add(function(authMechanism, peerName, authCount, 
+                                                      userName, credMask, credentials) {
+                        assertEquals("ALLJOYN_SRP_KEYX", authMechanism);
+                        assertEquals(otherBus.uniqueName, peerName);
+                        assertEquals(credentials.ONE_TIME_PWD, credMask);
+                        credentials.password = "123456";
+                        return true;
+                    }, 2),
+                    onComplete: callbacks.add(function(authMechanism, peerName, success) {
+                        assertEquals("", authMechanism);
+                        assertEquals(otherBus.uniqueName, peerName);
+                        assertFalse(success);
+                    })
+                }, clearKeyStore);
+            };
+            var clearKeyStore = function(err) {
+                assertFalsy(err);
+                bus.clearKeyStore(callbacks.add(connect));
+            };
+            var connect = function(err) {
+                assertFalsy(err);
+                bus.connect(callbacks.add(otherBusEnablePeerSecurity));
+            };
+            var otherBusEnablePeerSecurity = function(err) {
+                assertFalsy(err);
+                otherBus.enablePeerSecurity("ALLJOYN_SRP_KEYX", {
+                    onRequest: callbacks.add(function(authMechanism, peerName, authCount, 
+                                                      userName, credMask, credentials) {
+                        assertEquals("ALLJOYN_SRP_KEYX", authMechanism);
+                        assertEquals(bus.uniqueName, peerName);
+                        assertEquals(credentials.PASSWORD, credMask);
+                        credentials.password = "654321";
+                        return (authCount < 2) ? true : false;
+                    }, 2),
+                    onComplete: callbacks.add(function(authMechanism, peerName, success) {
+                        assertEquals("", authMechanism);
+                        assertEquals(bus.uniqueName, peerName);
+                        assertFalse(success);
+                    }),
+                    onSecurityViolation: callbacks.add(function(status, message) {
+                        assertEquals(org.alljoyn.bus.BusError.AUTH_FAIL, status);
+                    })
+                }, callbacks.add(otherBusClearKeyStore));
+            };
+            var otherBusClearKeyStore = function(err) {
+                assertFalsy(err);
+                otherBus.clearKeyStore(callbacks.add(otherBusConnect));
+            };
+            var otherBusConnect = function(err) {
+                assertFalsy(err);
+                otherBus.connect(callbacks.add(getProxyObj));
+            };
+            var getProxyObj = function(err) {
+                assertFalsy(err);
+                otherBus.getProxyBusObject(bus.uniqueName + "/test", callbacks.add(ping));
+            };
+            var ping = function(err, proxyObj) {
+                assertFalsy(err);
+                proxyObj.methodCall("test.SecureInterface", "Ping", "pong", callbacks.add(function(){}));
+            };
+            this._setUp(callbacks.add(enablePeerSecurity));
+        });
+    },
 
-                    assertEquals(0, otherBus.enablePeerSecurity("ALLJOYN_SRP_KEYX", {
-                                onRequest: callbacks.add(function(authMechanism, peerName, authCount, 
-                                                                           userName, credMask, credentials) {
-                                        assertEquals("ALLJOYN_SRP_KEYX", authMechanism);
-                                        assertEquals(bus.uniqueName, peerName);
-                                        assertEquals(1, authCount);
-                                        assertEquals(credentials.PASSWORD, credMask);
-                                        credentials.password = "123456";
-                                        return true;
-                                    }),
-                                onComplete: callbacks.add(function(authMechanism, peerName, success) {
-                                        assertEquals("ALLJOYN_SRP_KEYX", authMechanism);
-                                        assertEquals(bus.uniqueName, peerName);
-                                        assertTrue(success);
-                                    })
-                            }));
-                    otherBus.clearKeyStore();
-                    assertEquals(0, otherBus.connect());
-
-                    var onPing = callbacks.add(function(context, outStr) {});
-                    var onErr = callbacks.addErrback(onError);
-                    otherBus.proxy[bus.uniqueName + "/test"]["test.SecureInterface"].Ping(onPing, onErr, "pong");
-                });
-        },
-
-        testSrpKeyxFail: function(queue) {
-            queue.call(function(callbacks) {
-                    assertEquals(0, bus.enablePeerSecurity("ALLJOYN_SRP_KEYX", {
-                                onRequest: callbacks.add(function(authMechanism, peerName, authCount, 
-                                                                           userName, credMask, credentials) {
-                                        assertEquals("ALLJOYN_SRP_KEYX", authMechanism);
-                                        assertEquals(otherBus.uniqueName, peerName);
-                                        assertEquals(credentials.ONE_TIME_PWD, credMask);
-                                        credentials.password = "123456";
-                                        return true;
-                                    }, 2),
-                                onComplete: callbacks.add(function(authMechanism, peerName, success) {
-                                        assertEquals("", authMechanism);
-                                        assertEquals(otherBus.uniqueName, peerName);
-                                        assertFalse(success);
-                                    })
-                            }));
-                    bus.clearKeyStore();
-                    assertEquals(0, bus.connect());
-
-                    assertEquals(0, otherBus.enablePeerSecurity("ALLJOYN_SRP_KEYX", {
-                                onRequest: callbacks.add(function(authMechanism, peerName, authCount, 
-                                                                           userName, credMask, credentials) {
-                                        assertEquals("ALLJOYN_SRP_KEYX", authMechanism);
-                                        assertEquals(bus.uniqueName, peerName);
-                                        assertEquals(credentials.PASSWORD, credMask);
-                                        credentials.password = "654321";
-                                        return (authCount < 2) ? true : false;
-                                    }, 2),
-                                onComplete: callbacks.add(function(authMechanism, peerName, success) {
-                                        assertEquals("", authMechanism);
-                                        assertEquals(bus.uniqueName, peerName);
-                                        assertFalse(success);
-                                    }),
-                                onSecurityViolation: callbacks.add(function(status, message) {
-                                        assertEquals(alljoyn.BusError.AUTH_FAIL, status);
-                                    })
-                            }));
-                    otherBus.clearKeyStore();
-                    assertEquals(0, otherBus.connect());
-
-                    var onPing = callbacks.addErrback(function(context, outStr) {});
-                    var onErr = callbacks.add(function(error) {});
-                    otherBus.proxy[bus.uniqueName + "/test"]["test.SecureInterface"].Ping(onPing, onErr, "pong");
-                });
-        },
-
-        testRsaKeyxPass: function(queue) {
-            queue.call(function(callbacks) {
-                    assertEquals(0, bus.enablePeerSecurity("ALLJOYN_RSA_KEYX", {
-                                onRequest: callbacks.add(function(authMechanism, peerName, authCount, 
-                                                                           userName, credMask, credentials) {
-                                        assertEquals("ALLJOYN_RSA_KEYX", authMechanism);
-                                        assertEquals(otherBus.uniqueName, peerName);
-                                        if (credentials.NEW_PASSWORD & credMask) {
-                                            credentials.password = "654321";
-                                        }
-                                        return true;
-                                    }, 2),
-                                onVerify: callbacks.add(function(authMechanism, peerName, credentials) {
-                                        return true;
-                                    }),
-                                onComplete: callbacks.add(function(authMechanism, peerName, success) {
-                                        assertEquals("ALLJOYN_RSA_KEYX", authMechanism);
-                                        assertEquals(otherBus.uniqueName, peerName);
-                                        assertTrue(success);
-                                    })
-                                }));
-                    bus.clearKeyStore();
-                    assertEquals(0, bus.connect());
-
-                    assertEquals(0, otherBus.enablePeerSecurity("ALLJOYN_RSA_KEYX", {
-                                onRequest: callbacks.add(function(authMechanism, peerName, authCount, 
-                                                                           userName, credMask, credentials) {
-                                        assertEquals("ALLJOYN_RSA_KEYX", authMechanism);
-                                        assertEquals(bus.uniqueName, peerName);
-                                        if (credentials.NEW_PASSWORD & credMask) {
-                                            credentials.password = "123456";
-                                        }
-                                        return true;
-                                    }, 2),
-                                onVerify: callbacks.add(function(authMechanism, peerName, credentials) {
-                                        return true;
-                                    }),
-                                onComplete: callbacks.add(function(authMechanism, peerName, success) {
-                                        assertEquals("ALLJOYN_RSA_KEYX", authMechanism);
-                                        assertEquals(bus.uniqueName, peerName);
-                                        assertTrue(success);
-                                    })
-                                }));
-                    otherBus.clearKeyStore();
-                    assertEquals(0, otherBus.connect());
-
-                    var onPing = callbacks.add(function(context, outStr) {});
-                    var onErr = callbacks.addErrback(onError);
-                    otherBus.proxy[bus.uniqueName + "/test"]["test.SecureInterface"].Ping(onPing, onErr, "pong");
-                });
-        },
-
-        testMultipleAuthMechanisms: function(queue) {
-            queue.call(function(callbacks) {
-                    assertEquals(0, bus.enablePeerSecurity("ALLJOYN_RSA_KEYX ALLJOYN_SRP_KEYX", {
-                                onRequest: callbacks.add(function(authMechanism, peerName, authCount, 
-                                                                           userName, credMask, credentials) {
-                                        assertEquals("ALLJOYN_SRP_KEYX", authMechanism);
-                                        assertEquals(otherBus.uniqueName, peerName);
-                                        assertEquals(credentials.ONE_TIME_PWD, credMask);
-                                        credentials.password = "123456";
-                                        return true;
-                                    }),
-                                onComplete: callbacks.add(function(authMechanism, peerName, success) {
-                                        assertEquals("ALLJOYN_SRP_KEYX", authMechanism);
-                                        assertEquals(otherBus.uniqueName, peerName);
-                                        assertTrue(success);
-                                    })
-                                }));
-                    bus.clearKeyStore();
-                    assertEquals(0, bus.connect());
-
-                    assertEquals(0, otherBus.enablePeerSecurity("ALLJOYN_SRP_KEYX", {
-                                onRequest: callbacks.add(function(authMechanism, peerName, authCount, 
-                                                                           userName, credMask, credentials) {
-                                        assertEquals("ALLJOYN_SRP_KEYX", authMechanism);
-                                        assertEquals(bus.uniqueName, peerName);
-                                        assertEquals(credentials.PASSWORD, credMask);
-                                        credentials.password = "123456";
-                                        return true;
-                                    }),
-                                onComplete: callbacks.add(function(authMechanism, peerName, success) {
-                                        assertEquals("ALLJOYN_SRP_KEYX", authMechanism);
-                                        assertEquals(bus.uniqueName, peerName);
-                                        assertTrue(success);
-                                    }),
-                                }));
-                    otherBus.clearKeyStore();
-                    assertEquals(0, otherBus.connect());
-
-                    var onPing = callbacks.add(function(context, outStr) {});
-                    var onErr = callbacks.addErrback(onError);
-                    otherBus.proxy[bus.uniqueName + "/test"]["test.SecureInterface"].Ping(onPing, onErr, "pong");
-                });
-        },
-    });
+    testRsaKeyxPass: function(queue) {
+        queue.call(function(callbacks) {
+            var enablePeerSecurity = function(err) {
+                bus.enablePeerSecurity("ALLJOYN_RSA_KEYX", {
+                    onRequest: callbacks.add(function(authMechanism, peerName, authCount, 
+                                                      userName, credMask, credentials) {
+                        assertEquals("ALLJOYN_RSA_KEYX", authMechanism);
+                        assertEquals(otherBus.uniqueName, peerName);
+                        if (credentials.NEW_PASSWORD & credMask) {
+                            credentials.password = "654321";
+                        }
+                        return true;
+                    }, 2),
+                    onVerify: callbacks.add(function(authMechanism, peerName, credentials) {
+                        return true;
+                    }),
+                    onComplete: callbacks.add(function(authMechanism, peerName, success) {
+                        assertEquals("ALLJOYN_RSA_KEYX", authMechanism);
+                        assertEquals(otherBus.uniqueName, peerName);
+                        assertTrue(success);
+                    })
+                }, callbacks.add(clearKeyStore));
+            };
+            var clearKeyStore = function(err) {
+                assertFalsy(err);
+                bus.clearKeyStore(callbacks.add(connect));
+            };
+            var connect = function(err) {
+                assertFalsy(err);
+                bus.connect(callbacks.add(otherBusEnablePeerSecurity));
+            };
+            var otherBusEnablePeerSecurity = function(err) {
+                assertFalsy(err);
+                otherBus.enablePeerSecurity("ALLJOYN_RSA_KEYX", {
+                    onRequest: callbacks.add(function(authMechanism, peerName, authCount, 
+                                                      userName, credMask, credentials) {
+                        assertEquals("ALLJOYN_RSA_KEYX", authMechanism);
+                        assertEquals(bus.uniqueName, peerName);
+                        if (credentials.NEW_PASSWORD & credMask) {
+                            credentials.password = "123456";
+                        }
+                        return true;
+                    }, 2),
+                    onVerify: callbacks.add(function(authMechanism, peerName, credentials) {
+                        return true;
+                    }),
+                    onComplete: callbacks.add(function(authMechanism, peerName, success) {
+                        assertEquals("ALLJOYN_RSA_KEYX", authMechanism);
+                        assertEquals(bus.uniqueName, peerName);
+                        assertTrue(success);
+                    })
+                }, callbacks.add(otherBusClearKeyStore));
+            };
+            var otherBusClearKeyStore = function(err) {
+                assertFalsy(err);
+                otherBus.clearKeyStore(callbacks.add(otherBusConnect));
+            };
+            var otherBusConnect = function(err) {
+                assertFalsy(err);
+                otherBus.connect(callbacks.add(getProxyObj));
+            };
+            var getProxyObj = function(err) {
+                assertFalsy(err);
+                otherBus.getProxyBusObject(bus.uniqueName + "/test", callbacks.add(ping));
+            };
+            var ping = function(err, proxyObj) {
+                assertFalsy(err);
+                proxyObj.methodCall("test.SecureInterface", "Ping", "pong", callbacks.add(function(){}));
+            };
+            this._setUp(callbacks.add(enablePeerSecurity));
+        });
+    },
+    
+    testMultipleAuthMechanisms: function(queue) {
+        queue.call(function(callbacks) {
+            var enablePeerSecurity = function(err) { 
+                assertFalsy(err);
+                bus.enablePeerSecurity("ALLJOYN_RSA_KEYX ALLJOYN_SRP_KEYX", {
+                    onRequest: callbacks.add(function(authMechanism, peerName, authCount, 
+                                                      userName, credMask, credentials) {
+                        assertEquals("ALLJOYN_SRP_KEYX", authMechanism);
+                        assertEquals(otherBus.uniqueName, peerName);
+                        assertEquals(credentials.ONE_TIME_PWD, credMask);
+                        credentials.password = "123456";
+                        return true;
+                    }),
+                    onComplete: callbacks.add(function(authMechanism, peerName, success) {
+                        assertEquals("ALLJOYN_SRP_KEYX", authMechanism);
+                        assertEquals(otherBus.uniqueName, peerName);
+                        assertTrue(success);
+                    })
+                }, callbacks.add(clearKeyStore));
+            };
+            var clearKeyStore = function(err) {
+                assertFalsy(err);
+                bus.clearKeyStore(callbacks.add(connect));
+            };
+            var connect = function(err) {
+                assertFalsy(err);
+                bus.connect(callbacks.add(otherBusEnablePeerSecurity));
+            };
+            var otherBusEnablePeerSecurity = function(err) {
+                assertFalsy(err);
+                otherBus.enablePeerSecurity("ALLJOYN_SRP_KEYX", {
+                    onRequest: callbacks.add(function(authMechanism, peerName, authCount, 
+                                                      userName, credMask, credentials) {
+                        assertEquals("ALLJOYN_SRP_KEYX", authMechanism);
+                        assertEquals(bus.uniqueName, peerName);
+                        assertEquals(credentials.PASSWORD, credMask);
+                        credentials.password = "123456";
+                        return true;
+                    }),
+                    onComplete: callbacks.add(function(authMechanism, peerName, success) {
+                        assertEquals("ALLJOYN_SRP_KEYX", authMechanism);
+                        assertEquals(bus.uniqueName, peerName);
+                        assertTrue(success);
+                    }),
+                }, callbacks.add(otherBusClearKeyStore));
+            };
+            var otherBusClearKeyStore = function(err) {
+                assertFalsy(err);
+                otherBus.clearKeyStore(callbacks.add(otherBusConnect));
+            };
+            var otherBusConnect = function(err) {
+                assertFalsy(err);
+                otherBus.connect(callbacks.add(getProxy));
+            };
+            var getProxy = function(err) {
+                assertFalsy(err);
+                otherBus.getProxyBusObject(bus.uniqueName + "/test", callbacks.add(ping));
+            };
+            var ping = function(err, proxyObj) {
+                assertFalsy(err);
+                proxyObj.methodCall("test.SecureInterface", "Ping", "pong", callbacks.add(function(){}));
+            };
+            this._setUp(callbacks.add(enablePeerSecurity));
+        });
+    },
+});

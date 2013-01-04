@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Qualcomm Innovation Center, Inc.
+ * Copyright 2011-2012, Qualcomm Innovation Center, Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -36,8 +36,6 @@ class _BusErrorHost : public ScriptableObject {
     bool getName(NPVariant* result);
     bool getMessage(NPVariant* result);
     bool getCode(NPVariant* result);
-
-    bool toString(const NPVariant* args, uint32_t npargCount, NPVariant* result);
 };
 
 typedef qcc::ManagedObj<_BusErrorHost> BusErrorHost;
