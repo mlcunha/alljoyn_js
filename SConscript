@@ -89,3 +89,34 @@ if '' != env.subst('$GECKO_BASE'):
 # TODO
 #    Widl('assets/www/alljoyn.js.in', 'jni/Status.xml', 'assets/www/alljoyn.js')
 #    env.Install('$JS_DISTDIR/assets/www', 'assets/www/alljoyn.js')
+
+# Build docs
+def widlproc_cmd(widl, wxml):
+    xml = open(wxml, 'w')
+    p = subprocess.Popen(env['WIDLPROC'] + ' ' + widl, shell=True, stdout=xml)
+    p.wait()
+    xml.flush()
+    xml.close()
+
+if 'WIDLPROC' in env:
+    print("*******************************************************************")
+    print("* The documentation files created will not be removed when        *")
+    print("* using scons' -c option. The docs/html folder must manually be   *")
+    print("* deleted to remove the documentation files created.              *")
+    print("*******************************************************************")
+    footer = '"<hr/><p class=\\"copyright\\"></p><small>AllJoyn JavaScript API Reference Manual Version 0.0.1 ' + time.strftime('%a %B %d %H:%M:%S %Z %Y') + '<br/>Copyright &copy; 2012 Qualcomm Innovation Center, Inc.<br/>This document is licensed under a Creative Commons Attribution-Share Alike 3.0 Unported License; provided,<br/>that (i) any source code incorporated in this document is licensed under the Apache License version 2.0<br/>and (ii) <b>THIS DOCUMENT AND ALL INFORMATION CONTAIN HEREIN ARE PROVIDED ON AN \\"AS-IS\\" BASIS WITHOUT WARRANTY OF ANY KIND</b>.<br/><a href=\\"http://creativecommons.org/licenses/by-sa/3.0\\">Creative Commons Attribution-Share Alike 3.0 Unported License</a><br/><b>MAY CONTAIN U.S. AND INTERNATIONAL EXPORT CONTROLLED INFORMATION</b><br/></small>"'
+    Widl('docs/alljoyn.widl.in', 'jni/Status.xml', 'docs/alljoyn.widl')
+    # The target directory 'docs/tmp' is never built this will cause the command to run every time WIDLPROC=foo is set
+    Command('docs/tmp', 'docs/alljoyn.widl', [
+            widlproc_cmd('docs/alljoyn.widl', 'docs/alljoyn.wxml'),
+            env['XSLTPROC'] +
+            ' --stringparam date "' + time.strftime('%d %B %Y') + '"' +
+            ' --stringparam logo "<img src=\\"icon.png\\" alt=\\"AllJoyn logo\\"/>"' +
+            ' --stringparam footer ' + footer +
+            ' --path ' + os.path.dirname(env['WIDLPROC']) +
+            ' -o ' + File('docs/html/index.html').path +
+            ' ' + File(os.path.dirname(env['WIDLPROC']) + '/../src/widlprocxmltohtml.xsl').path +
+            ' ' + File('docs/alljoyn.wxml').path
+            ])
+    env.Install('docs/html', 'docs/icon.png')
+    env.Install('docs/html', 'docs/widlhtml.css')
