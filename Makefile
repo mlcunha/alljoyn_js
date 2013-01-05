@@ -102,7 +102,7 @@ else
 endif
 
 # Header/lib path include
-INCLUDE = -I$(PWD)/../common/inc -I$(PWD)/../alljoyn_core/inc -I$(PWD)/../alljoyn_core/src -I$(PWD)/../alljoyn_core/daemon  -I$(PWD)/../alljoyn_core/inc/alljoyn
+INCLUDE = -I$(PWD)/../common/inc -I$(PWD)/../alljoyn_core/src -I$(PWD)/../alljoyn_core/daemon
 
 # Platform specifics system libs
 ifeq "$(OS)" "linux"
@@ -115,6 +115,7 @@ AJDAEMONLIB = $(INSTALLDIR)/dist/lib/libajdaemon.a
 BUNDLED_OBJ = $(INSTALLDIR)/dist/lib/BundledDaemon.o
 COMMONDIR = $(PWD)/../common
 
+INCLUDE += -I$(INSTALLDIR)/dist/inc -I$(INSTALLDIR)/dist/inc/alljoyn
 INCLUDE += -L$(INSTALLDIR)/dist/lib
 
 JUNK=*.o *~

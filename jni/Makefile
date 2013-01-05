@@ -28,11 +28,14 @@ ifeq "$(GECKO_BASE)" ""
 endif
 
 CPPDEFINES+=-D__STDC_LIMIT_MACROS
+#must include the PWD so the code in the npapi directory will build.
+INCLUDE+=-I$(PWD)/npapi -I$(PWD)
 INCLUDE+=-I$(GECKO_BASE)/include
 LINKFLAGS += -shared
 
 NPALLJOYN_CC_SRCS = $(wildcard *.cc)
 NPALLJOYN_CC_SRCS += $(wildcard os/$(OS)/*.cc)
+NPALLJOYN_CC_SRCS += $(wildcard npapi/*.cc)
 NPALLJOYN_CC_OBJS = $(patsubst %.cc,%.o,$(NPALLJOYN_CC_SRCS))
 
 $(NPALLJOYN_CC_OBJS) : $(NPALLJOYN_CC_SRCS)
