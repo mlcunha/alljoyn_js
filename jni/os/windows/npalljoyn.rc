@@ -1,5 +1,5 @@
 /////////////////////////////////////////////////////////////////////////////
-// Copyright 2011 - 2012, Qualcomm Innovation Center, Inc.
+// Copyright 2011 - 2013, Qualcomm Innovation Center, Inc.
 // 
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -26,8 +26,8 @@
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION    0,0,1,0
- PRODUCTVERSION 0,0,1,0
+ FILEVERSION    3,2,0,0
+ PRODUCTVERSION 3,2,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -44,13 +44,13 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Qualcomm Innovation Center, Inc."
             VALUE "FileDescription", L"AllJoyn browser plugin"
-            VALUE "FileVersion", "0.0.1"
+            VALUE "FileVersion", "3.2.0"
             VALUE "InternalName", "npalljoyn"
-            VALUE "LegalCopyright", "Copyright 2012, Qualcomm Innovation Center, Inc."
+            VALUE "LegalCopyright", "Copyright 2013, Qualcomm Innovation Center, Inc."
             VALUE "MIMEType", "application/x-alljoyn"
             VALUE "OriginalFilename", "npalljoyn.dll"
             VALUE "ProductName", "AllJoyn"
-            VALUE "ProductVersion", "0.0.1"
+            VALUE "ProductVersion", "3.2.0"
         END
     END
     BLOCK "VarFileInfo"

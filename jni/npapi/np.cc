@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012, Qualcomm Innovation Center, Inc.
+ * Copyright 2011-2013, Qualcomm Innovation Center, Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -98,7 +98,7 @@ NP_EXPORT(char*) NP_GetPluginVersion()
 {
     InitializeDebug();
     QCC_DbgPrintf(("%s", __FUNCTION__));
-    return const_cast<char*>("0.0.1");
+    return const_cast<char*>("3.2.0");
 }
 
 NP_EXPORT(char*) NP_GetMIMEDescription()

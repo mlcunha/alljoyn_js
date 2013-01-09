@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 - 2012, Qualcomm Innovation Center, Inc.
+ * Copyright 2011 - 2013, Qualcomm Innovation Center, Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
  * \file
  *
  * \name AllJoyn JavaScript API Reference Manual
- * \version 0.0.1
+ * \version 3.2.0
  *
  * Type coercion between DBus and JavaScript types is done according to the following table.
  * <table>
