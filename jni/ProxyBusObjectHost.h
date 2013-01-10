@@ -41,6 +41,7 @@ class _ProxyBusObjectHost : public ScriptableObject {
 
     bool getChildren(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool getInterface(const NPVariant* args, uint32_t argCount, NPVariant* result);
+    bool getInterfaces(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool introspect(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool methodCall(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool parseXML(const NPVariant* args, uint32_t argCount, NPVariant* result);
