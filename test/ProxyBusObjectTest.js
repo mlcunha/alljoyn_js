@@ -97,85 +97,101 @@ AsyncTestCase("ProxyBusObjectTest", {
             var connect = function(err, proxyObj) {
                 assertFalsy(err);
                 proxy = proxyObj;
-                bus.connect(callbacks.add(getChildren));
-            };
-            var getChildren = function(err) {
-                assertFalsy(err);
+                
                 var actual = {};
                 for (var n in proxy) {
                     actual[n] = true;
                 }
+                //ProxyBusObject ATTRIBUTES
                 assertTrue(actual["serviceName"]);
                 assertTrue(actual["path"]);
-                assertTrue(actual["org.freedesktop.DBus.Peer"]); // TODO need to call getInterface
+                assertTrue(actual["sessionId"]);
+                //ProxyBusObject OPERATIONS
+                assertTrue(actual["getChildren"]);
+                assertTrue(actual["getInterface"]);
+                assertTrue(actual["getInterfaces"]);
                 assertTrue(actual["introspect"]);
+                assertTrue(actual["methodCall"]);
                 assertTrue(actual["parseXML"]);
+                assertTrue(actual["secureConnection"]);
                 
-                proxy.getChildren(callbacks.add(getPeerInterface));
+                bus.connect(callbacks.add(getChildren));
             };
-            var getPeerInterface = function(err, children) {
+            var getChildren = function(err) {
+                assertFalsy(err);
+                proxy.getChildren(callbacks.add(getInterfaces));
+            };
+            var getInterfaces = function(err, children) {
+                assertFalsy(err);
+                assertTrue(children.length === 0);
+                proxy.getInterfaces(callbacks.add(getInterface));
+            };
+            var getInterface = function(err, interfaces) {
                 assertFalsy(err);
                 var actual = {};
-                for (var n in children) {
-                    actual[n] = true;
+                for (var i = 0; i < interfaces.length; ++i) {
+                    actual[interfaces[i].name] = true;
                 }
+                
+                assertTrue(actual["org.freedesktop.DBus.Peer"]);
                 
                 proxy.getInterface('org.freedesktop.DBus.Peer', callbacks.add(introspect));
             };
             var introspect = function(err, intf) {
                 assertFalsy(err);
-                var actual = {};
-                for (var n in intf) {
+                
+                actual = {};
+                for (var n in intf ) {
                     actual[n] = true;
+                }
+                
+                assertEquals("org.freedesktop.DBus.Peer", intf.name);
+                
+                var actual = {};
+                //for (var n in intf.method) {
+                for (var i = 0; i < intf.method.length; ++i) {    
+                    actual[intf.method[i].name] = true;
                 }
                 assertTrue(actual["GetMachineId"]);
                 assertTrue(actual["Ping"]);
-                actual = {};
-                for (var n in intf.GetMachineId) {
-                    actual[n] = true;
-                }
 
                 proxy.introspect(callbacks.add(onIntrospect));
             };
+            
             var onIntrospect = function(err) {
                 assertFalsy(err);
+                proxy.getInterfaces(callbacks.add(onGetInterfaces));
+            };
+            
+            var onGetInterfaces = function(err, interfaces) {
                 var actual = {};
-                for (var n in proxy) {
-                    actual[n] = true;
+                for (var i = 0; i < interfaces.length; ++i) {
+                    actual[interfaces[i].name] = true;
                 }
-                assertTrue(actual["children"]);
-                assertTrue(actual["serviceName"]);
-                assertTrue(actual["path"]);
                 assertTrue(actual["org.alljoyn.Bus"]);
+                assertTrue(actual["org.alljoyn.Daemon"]);
                 assertTrue(actual["org.freedesktop.DBus.Introspectable"]);
                 assertTrue(actual["org.freedesktop.DBus.Peer"]);
-                assertTrue(actual["introspect"]);
-                assertTrue(actual["parseXML"]);
-
+                
                 proxy.getChildren(callbacks.add(getPeerInterface));
             };
             var getPeerInterface = function(err, children) {
                 assertFalsy(err);
                 var actual = {};
                 for (var n in children) {
-                    actual[n] = true;
+                    actual[children[n].path] = true;
                 }
-                assertTrue(actual["Peer"]); // TODO need to call getInterface
+                assertTrue(actual["/org/alljoyn/Bus/Peer"]);
 
                 proxy.getInterface('org.freedesktop.DBus.Peer', callbacks.add(done));
             };
             var done = function(err, intf) {
                 var actual = {};
-                for (var n in intf) {
-                    actual[n] = true;
+                for (var n in intf.method) {
+                    actual[intf.method[n].name] = true;
                 }
                 assertTrue(actual["GetMachineId"]);
                 assertTrue(actual["Ping"]);
-                
-                actual = {};
-                for (var n in intf.GetMachineId) {
-                    actual[n] = true;
-                }
             };    
             this._setUp(callbacks.add(getProxyObj));
         });
