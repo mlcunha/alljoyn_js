@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012, Qualcomm Innovation Center, Inc.
+ * Copyright 2011-2013, Qualcomm Innovation Center, Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -465,44 +465,44 @@ bool _ProxyBusObjectHost::getInterfaces(const NPVariant* args, uint32_t argCount
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
 
-        CallbackNative* callbackNative = 0;
-        size_t numIfaces;
-        const ajn::InterfaceDescription** ifaces = 0;
-        InterfaceDescriptionNative** descs = 0;
-        QStatus status = ER_OK;
-        bool typeError = false;
+    CallbackNative* callbackNative = 0;
+    size_t numIfaces;
+    const ajn::InterfaceDescription** ifaces = 0;
+    InterfaceDescriptionNative** descs = 0;
+    QStatus status = ER_OK;
+    bool typeError = false;
 
-        if (argCount < 1) {
-            typeError = true;
-            plugin->RaiseTypeError("not enough arguments");
-            goto exit;
-        }
-        callbackNative = ToNativeObject<CallbackNative>(plugin, args[0], typeError);
-        if (typeError || !callbackNative) {
-            typeError = true;
-            plugin->RaiseTypeError("argument 0 is not an object");
-            goto exit;
-        }
+    if (argCount < 1) {
+        typeError = true;
+        plugin->RaiseTypeError("not enough arguments");
+        goto exit;
+    }
+    callbackNative = ToNativeObject<CallbackNative>(plugin, args[0], typeError);
+    if (typeError || !callbackNative) {
+        typeError = true;
+        plugin->RaiseTypeError("argument 0 is not an object");
+        goto exit;
+    }
 
-        numIfaces = proxyBusObject->GetInterfaces();
-        ifaces = new const ajn::InterfaceDescription *[numIfaces];
-        proxyBusObject->GetInterfaces(ifaces, numIfaces);
-        descs = new InterfaceDescriptionNative *[numIfaces];
-        for (uint32_t i = 0; i < numIfaces; ++i) {
-            descs[i] = InterfaceDescriptionNative::GetInterface(plugin, busAttachment, ifaces[i]->GetName());
-        }
+    numIfaces = proxyBusObject->GetInterfaces();
+    ifaces = new const ajn::InterfaceDescription *[numIfaces];
+    proxyBusObject->GetInterfaces(ifaces, numIfaces);
+    descs = new InterfaceDescriptionNative *[numIfaces];
+    for (uint32_t i = 0; i < numIfaces; ++i) {
+        descs[i] = InterfaceDescriptionNative::GetInterface(plugin, busAttachment, ifaces[i]->GetName());
+    }
 
-    exit:
-        if (!typeError && callbackNative) {
-            CallbackNative::DispatchCallback(plugin, callbackNative, status, descs, numIfaces);
-            descs = 0;
-            callbackNative = 0;
-        }
-        delete callbackNative;
-        delete[] descs;
-        delete[] ifaces;
-        VOID_TO_NPVARIANT(*result);
-        return !typeError;
+exit:
+    if (!typeError && callbackNative) {
+        CallbackNative::DispatchCallback(plugin, callbackNative, status, descs, numIfaces);
+        descs = 0;
+        callbackNative = 0;
+    }
+    delete callbackNative;
+    delete[] descs;
+    delete[] ifaces;
+    VOID_TO_NPVARIANT(*result);
+    return !typeError;
 }
 
 bool _ProxyBusObjectHost::getServiceName(NPVariant* result)
