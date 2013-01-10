@@ -46,7 +46,7 @@ BEGIN
             VALUE "FileDescription", L"AllJoyn browser plugin"
             VALUE "FileVersion", "3.2.0"
             VALUE "InternalName", "npalljoyn"
-            VALUE "LegalCopyright", "Copyright 2013, Qualcomm Innovation Center, Inc."
+            VALUE "LegalCopyright", "Copyright 2011-2013, Qualcomm Innovation Center, Inc."
             VALUE "MIMEType", "application/x-alljoyn"
             VALUE "OriginalFilename", "npalljoyn.dll"
             VALUE "ProductName", "AllJoyn"
