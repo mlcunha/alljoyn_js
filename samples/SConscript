@@ -26,9 +26,9 @@ for sample in ['addressbook/client',
                'props/client',
                'props/service',
                'simple/client',
-               'simple/service',
-               'streaming/sink',
-               'streaming/source']:
+               'simple/service']:
+               #'streaming/sink',
+               #'streaming/source']:
     env.Install(distdir % sample, env.Glob('%s/*' % sample))
     if '' != env.subst('$GECKO_BASE'):
         env.Install(distdir % sample, '../js/npapi/alljoyn_init.js');
@@ -38,6 +38,6 @@ for sample in ['addressbook/client',
 for sample in ['simple/client',
                'simple/service']:
     env.Install((distdir + '/js') % sample, 'simple/simple.js')
-for sample in ['streaming/sink',
-               'streaming/source']:
-    env.Install((distdir + '/js') % sample, 'streaming/alljoyn.js')
+#for sample in ['streaming/sink',
+#               'streaming/source']:
+#    env.Install((distdir + '/js') % sample, 'streaming/alljoyn.js')
