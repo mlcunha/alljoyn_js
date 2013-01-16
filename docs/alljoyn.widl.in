@@ -42,7 +42,7 @@
  * <tr><td>sequence&lt;T&gt;</td><td>ARRAY</td><td>'a'</td><td>When the DBus value is an array of
  * DICT_ENTRY, the argument will be an Object where each property is the DICT_ENTRY key and each
  * value is the DICT_ENTRY value.  Otherwise the argument will be an Array.</td></tr>
- * <tr><td>sequence&lt;any&gt;</td><td>STRUCT</td><td>'r','(',')'</td><td>Array</td></tr>
+ * <tr><td>sequence&lt;any&gt;</td><td>STRUCT</td><td>'r', '(', ')'</td><td>Array</td></tr>
  * <tr><td>any</td><td>VARIANT</td><td>'v'</td><td>DBus VARIANT types remove the VARIANT wrapper.
  * For example, a VARIANT of the string "value" will be <em>"value"</em>.  Nested VARIANTs will
  * remove only one VARIANT wrapper.  For example, a VARIANT of a VARIANT of a string will be the
@@ -52,7 +52,7 @@
  * Debug output of the plugin can be configured dynamically by setting the debug attribute of the
  * <em>object</em> element containing the plugin.  The syntax of the attribute value is the same as
  * BusAttachment.setDaemonDebug, e.g. <em>debug="ALLJOYN_JS=15"</em>.  The destination for debug
- * output depends on the platform: Windows is OutputDebugString, Android is logcat, and for all
+ * output depends on the platform: Windows is OutputDebugString, and for all
  * others it is stdout.
  */
 
@@ -226,14 +226,6 @@ interface BusAttachment {
     const unsigned short SESSION_PORT_ANY = 0;
 
     /**
-     * \brief The unique name of this BusAttachment.
-     *
-     * Read-only.
-     *
-     * <em>null</em> if not connected.
-     */
-    readonly attribute DOMString uniqueName;
-    /**
      * \brief The GUID of this BusAttachment.
      *
      * The returned value may be appended to an advertised well-known name in order to
@@ -243,46 +235,14 @@ interface BusAttachment {
      */
     readonly attribute DOMString globalGUIDString;
     /**
-     * \brief Remotely located DBus objects.
+     * \brief The unique name of this BusAttachment.
      *
      * Read-only.
      *
-     * This attribute is an object having the remotely located DBus objects as properties.  See 
-     * <a href="#::ajn::ProxyBusObjects">ProxyBusObjects</a>.
+     * <em>null</em> if not connected.
      */
-    readonly attribute ProxyBusObjects proxy;
-    /**
-     * \brief Descriptions of message bus interfaces.
-     *
-     * Read-only.  
-     *
-     * This attribute is an object having the interfaces as properties.  See 
-     * <a href="#::ajn::InterfaceDescriptions">InterfaceDescriptions</a>.
-     */
-    readonly attribute InterfaceDescriptions interfaces; // interface is a JavaScript reserved word
-    /**
-     * \brief The current timestamp in milliseconds used internally by AllJoyn. 
-     *
-     * Read-only.
-     *
-     * This value can be compared with the timestamps on messages to calculate the time since a
-     * timestamped message was sent.
-     */
-    readonly attribute unsigned long timestamp;
-    /**
-     * \brief <em>true</em> if peer security has been enabled, <em>false</em> otherwise.
-     *
-     * Read-only.
-     */
-    readonly attribute boolean peerSecurityEnabled;
+    readonly attribute DOMString uniqueName;
 
-    /**
-     * \brief Gets a locally located DBus object previously registered.
-     *
-     * \param objectPath the absolute object path of the DBus object
-     * \return the object at the path if it exists, otherwise <em>undefined</em>.
-     */
-    getter BusObject getBusObject(DOMString objectPath);
     /**
      * \brief Registers a locally located DBus object.
      *
@@ -290,31 +250,82 @@ interface BusAttachment {
      *
      * \param objectPath the absolute object path of the DBus object
      * \param busObject the DBus object implementation
+     * \param cb callback function that should be run once the BusObject has 
+     *        been registered
      */
-    setter void registerBusObject(DOMString objectPath, BusObject busObject);
+    setter void registerBusObject(DOMString objectPath, BusObject busObject, statusCallback cb);
     /**
      * \brief Unregisters a locally located DBus object.
      *
      * \param objectPath the absolute object path of the DBus object
+     * \param cb callback function that should be run once the BusObject has 
+     *           been unregistered.
      */
-    deleter void unregisterBusObject(DOMString objectPath);
+    deleter void unregisterBusObject(DOMString objectPath, statusCallback cb);
 
+    /**
+     * \brief create a new BusAttachment.  
+     *
+     * create must be called before any other BusAttachment methods.  This call
+     * is responsible for making sure proper creation a native BusAttachment.
+     *
+     * \param allowRemoteMessages True if this attachment is allowed to receive messages from remote devices.
+     * \param cb callback function called once the native BusAttachment has been created. 
+     */
+    void create(boolean allowRemoteMessages, statusCallback cb);  
+    /**
+     * \brief add the interface specified by the interfaceDescription to the BusAttachment
+     *
+     * The interfaceDescription must be a full interface specification.  The interface is
+     * created and activated on the BusAttachment.
+     *
+     * \param interfaceDescription the specification for the interface being created.
+     * \param cb the function called once the createInterface method has completed.
+     */
+    void createInterface(InterfaceDescription interfaceDescription, statusCallback cb);
+    /**
+     * Initialize one more interface descriptions from an XML string in DBus introspection format.
+     * The root tag of the XML can be a \<node\> or a stand alone \<interface\> tag. To initialize more
+     * than one interface the interfaces need to be nested in a \<node\> tag.
+     *
+     * Note that when this method fails during parsing, the return code will be set accordingly.
+     * However, any interfaces which were successfully parsed prior to the failure may be registered
+     * with the bus.
+     *
+     * ]param xml An XML string in DBus introspection format.
+     * \param cb callback function that is run after creating the interfaces from
+     *           xml.  Callback will specify OK if parsing is completely successful.
+     *           An error status otherwise.
+     */
+    void createInterfacesFromXML(DOMString xml, statusCallback cb);
     /**
      * \brief Connects to a remote bus address.
      *
      * \param connectSpec an optional transport connection spec string of the form
      *                    "\<transport\>:\<param1\>=\<value1\>,\<param2\>=\<value2\>...[;]".
      *                    The default value is platform-specific.
+     * \param cb callback function that is called once connect has completed. 
      */
-    Status connect(optional DOMString connectSpec);
+    void connect(optional DOMString connectSpec, statusCallback cb);
     /**
      * \brief Disconnects from a remote bus address connection.
      * 
-     * \return BUS_NOT_STARTED if the bus is not started.  BUS_NOT_CONNECTED if the
-     *         BusAttachment is not connected to the bus. Other error status codes
-     *         indicating a failure.
+     * \param cb Callback function will specify BUS_NOT_STARTED if the bus is not started.  
+     *         BUS_NOT_CONNECTED if the BusAttachment is not connected to the bus. 
+     *         Other error status codes indicating a failure.
      */
-    Status disconnect();
+    void disconnect(statusCallback cb);
+    /**
+     * \brief Explicitly release the reference to the BusAttachment object
+     * 
+     * Explicitly releasing the reference to the BusAttachment object makes it
+     * so the JavaScript garbage-collector can free up the reference to the native
+     * BusAttachment.
+     * destroy should be called when the BusAttachment is no longer needed.
+     *
+     * \param cb function that should be run once destroy method call has completed
+     */
+    void destroy(statusCallback cb);
     /**
      * \brief Registers a signal handler.
      *
@@ -330,11 +341,12 @@ interface BusAttachment {
      *                   "org.sample.Foo.Echoed" where "org.sample.Foo" is
      *                   the interface and "Echoed" is the member
      * \param sourcePath the optional object path of the emitter of the signal
-     * \return BUS_NO_SUCH_INTERFACE if the interface part of signalName does not exist.
+     * \param cb status callback that will contain: 
+     *         BUS_NO_SUCH_INTERFACE if the interface part of signalName does not exist.
      *         BUS_NO_SUCH_MEMBER if the member part of signalName does not exist.
      *         Other error status codes indicating a failure.
      */
-    Status registerSignalHandler(MessageListener signalListener, DOMString signalName, optional DOMString sourcePath);
+    void registerSignalHandler(MessageListener signalListener, DOMString signalName, optional DOMString sourcePath, statusCallback cb);
     /**
      * \brief Unregisters a signal handler.
      *
@@ -345,20 +357,27 @@ interface BusAttachment {
      *                   "org.sample.Foo.Echoed" where "org.sample.Foo" is
      *                   the interface and "Echoed" is the member
      * \param sourcePath the optional object path of the emitter of the signal
+     * \param cb statusCallback with contain:
+     *           OK if request was successful
+     *           BUS_NOT_CONNECTED if a connection has not been made with a local bus.
+     *           other error status codes indicating a failure.
      */
-    Status unregisterSignalHandler(MessageListener signalListener, DOMString signalName, optional DOMString sourcePath);
+    void unregisterSignalHandler(MessageListener signalListener, DOMString signalName, optional DOMString sourcePath, statusCallback cb);
     /**
      * \brief Registers an object that will receive bus event notifications.
      *
      * \param listener the object that will receive bus event notifications
+     * \param cb callback function that is run after registerBusListener has completed
      */
-    void registerBusListener(BusListener listener);
+    void registerBusListener(BusListener listener, statusCallback cb);
     /**
      * \brief Unregisters an object that was previously registered with addBusListener.
      *
      * \param listener the object instance to unregister as a listener
+     * \param cb indicates function that will be run once unregisterBusListener 
+     *           method has completed.
      */
-    void unregisterBusListener(BusListener listener);
+    void unregisterBusListener(BusListener listener, statusCallback cb);
     /**
      * \brief Requests a well-known name.
      *
@@ -367,11 +386,11 @@ interface BusAttachment {
      *
      * \param requestedName well-known name being requested
      * \param flags bitmask of DBUS_NAME_FLAG_* constants.  Defaults to <em>0</em>.
-     *
-     * \return BUS_NOT_CONNECTED if a connection has not been made with a local bus.
-     *         Other error status codes indicating a failure.
+     * \param cb the statusCallback will contain:
+     *            BUS_NOT_CONNECTED if a connection has not been made with a local bus.
+     *            Other error status codes indicating a failure.
      */
-    Status requestName(DOMString requestedName, optional unsigned long flags);
+    void requestName(DOMString requestedName, optional unsigned long flags, statusCallback cb);
     /**
      * \brief Releases a previously requeted well-known name.
      *
@@ -379,11 +398,11 @@ interface BusAttachment {
      * call to the local daemon and interprets the response.
      *
      * \param name well-known name being released
-     *
-     * \return BUS_NOT_CONNECTED if a connection has not been made with a local bus.
-     *         Other error status codes indicating a failure.
+     * \param cb callback function that will contain the following status:
+     *           BUS_NOT_CONNECTED if a connection has not been made with a local bus.
+     *           Other error status codes indicating a failure.
      */
-    Status releaseName(DOMString name);
+    void releaseName(DOMString name, statusCallback cb);
     /**
      * \brief Adds a DBus match rule.
      *
@@ -391,11 +410,11 @@ interface BusAttachment {
      * to the local daemon.
      *
      * \param rule match rule to be added (see DBus specification for format of this string)
-     *
-     * \return BUS_NOT_CONNECTED if a connection has not been made with a local bus.
-     *         Other error status codes indicating a failure.
+     * \param cb callback function to run after addMatch has completed. callback will contain
+     *        status BUS_NOT_CONNECTED if a connection has not been made with a local bus.
+     *        Other error status codes indicating a failure.
      */
-    Status addMatch(DOMString rule);
+    void addMatch(DOMString rule, statusCallback cb);
     /**
      * \brief Removes a DBus match rule.
      *
@@ -404,11 +423,11 @@ interface BusAttachment {
      *
      * \param rule match rule to be removed (see DBus specification for format of this
      *             string)
-     *
-     * \return BUS_NOT_CONNECTED if a connection has not been made with a local bus.
-     *         Other error status codes indicating a failure.
+     * \param cb The statusCallback will contain:
+     *           BUS_NOT_CONNECTED if a connection has not been made with a local bus.
+     *           Other error status codes indicating a failure.
      */
-    Status removeMatch(DOMString rule);
+    void removeMatch(DOMString rule, statusCallback cb);
     /**
      * \brief Advertises the existence of a well-known name to other (possibly disconnected)
      * AllJoyn daemons.
@@ -418,11 +437,12 @@ interface BusAttachment {
      *
      * \param name the well-known name to advertise. (Must be owned by the caller via RequestName)
      * \param transports set of transports to use for sending advertisment
-     *
-     * \return BUS_NOT_CONNECTED if a connection has not been made with a local bus
-     *         Other error status codes indicating a failure
+     * \param cb callback function to run after name is advertised. Callback will
+     *           contain status BUS_NOT_CONNECTED if a connection has not been 
+     *           made with a local bus.
+     *           Other error status codes indicating a failure
      */
-    Status advertiseName(DOMString name, TransportMask transports);
+    void advertiseName(DOMString name, TransportMask transports, statusCallback cb);
     /**
      * \brief Stops advertising the existence of a well-known name to other AllJoyn daemons.
      *
@@ -431,11 +451,12 @@ interface BusAttachment {
      *
      * \param name a well-known name that was previously advertised via AdvertiseName
      * \param transports set of transports whose name advertisment will be cancelled
-     *
-     * \return BUS_NOT_CONNECTED if a connection has not been made with a local bus
-     *         Other error status codes indicating a failure
+     * \param cb callback function that is run after cancelAdvertiseName
+     *        callback returns        
+     *        BUS_NOT_CONNECTED if a connection has not been made with a local bus
+     *        Other error status codes indicating a failure
      */
-    Status cancelAdvertiseName(DOMString name, TransportMask transports);
+    void cancelAdvertiseName(DOMString name, TransportMask transports, statusCallback cb);
     /**
      * \brief Registers interest in a well-known name prefix for the purpose of discovery.
      *
@@ -444,11 +465,24 @@ interface BusAttachment {
      *
      * \param namePrefix well-known name prefix that application is interested in receiving
      *                   BusListener onFoundAdvertisedName notifications about
-     *
-     * \return BUS_NOT_CONNECTED if a connection has not been made with a local bus
-     *         Other error status codes indicating a failure
+     * \param cb function called after the findAdvertisedName method has completed
+     *        callback returns BUS_NOT_CONNECTED if a connection has not been made with a local bus
+     *        or Other error status codes indicating a failure
      */
-    Status findAdvertisedName(DOMString namePrefix);
+    void findAdvertisedName(DOMString namePrefix, statusCallback cb);
+    /**
+     * \brief Retrieve an existing activated InterfaceDescription.
+     *
+     * \param name interface name
+     * \param cb callback containing the specified interfaceDescritption.
+     */
+    void getInterface(DOMString name, interfaceDescriptionCallback cb);
+    /**
+     * Returns the existing activated InterfaceDescriptions.
+     * 
+     * \param cb callback containing the specified unterfaceDescritptions
+     */
+    void getInterfaces(interfaceDescriptionsCallback cb);
     /**
      * \brief Cancels interest in a well-known name prefix that was previously registered with
      * FindAdvertisedName.
@@ -458,11 +492,12 @@ interface BusAttachment {
      *
      * \param namePrefix well-known name prefix that application is no longer interested in
      *                   receiving BusListener onFoundAdvertisedName notifications about
-     *
-     * \return BUS_NOT_CONNECTED if a connection has not been made with a local bus
-     *         Other error status codes indicating a failure
+     * \param cb callback function run after a cancelFindAdvertisedName has completed
+     *           Callback will specify BUS_NOT_CONNECTED if a connection has not been made 
+     *           with a local bus.
+                 Other error status codes indicating a failure
      */
-    Status cancelFindAdvertisedName(DOMString namePrefix);
+    void cancelFindAdvertisedName(DOMString namePrefix, statusCallback cb);
     /**
      * \brief Makes a SessionPort available for external BusAttachments to join.
      *
@@ -516,18 +551,19 @@ interface BusAttachment {
      * </dl>
      *
      * \param parameters see above
-     * \return BUS_NOT_CONNECTED if a connection has not been made with a local bus.
+     * \param cb callback function run after bindSessionPort has completed.
+     *        BUS_NOT_CONNECTED if a connection has not been made with a local bus.
      */
-    Status bindSessionPort(object parameters);
+    void bindSessionPort(object parameters, sessionPortCallBack cb);
     /**
      * \brief Cancels an existing port binding.
      *
      * \param port existing session port to be un-bound
-     *
-     * \return BUS_NOT_CONNECTED if a connection has not been made with a local bus.
-     *         Other error status codes indicating a failure.
+     * \param cb The sessionCallback contains: 
+     *           BUS_NOT_CONNECTED if a connection has not been made with a local bus.
+     *           Other error status codes indicating a failure.
      */
-    Status unbindSessionPort(SessionPort port);
+    void unbindSessionPort(SessionPort port, sessionCallback cb);
     /**
      * \brief Sets the session listener for an existing session ID.
      *
@@ -550,8 +586,10 @@ interface BusAttachment {
      * \param id the session id of an existing session
      * \param listener the listener to associate with the session; see above.  May be
      *                 <em>null</em> to clear the previous listener.
+     * \param cb callback contains OK if call to setSessionListener was successfull.
+     *           
      */
-    Status setSessionListener(SessionId id, object listener);
+    void setSessionListener(SessionId id, object listener, statusCallback cb);
     /**
      * \brief Joins a session.
      *
@@ -585,11 +623,10 @@ interface BusAttachment {
      * by the bus when a member of a multipoint session is removed</dd>
      * </dl>
      *
-     * \param successListener function invoked when the join completes successfully
-     * \param errorListener function invoked when the join completes with an error
      * \param parameters see above
+     * \param cb function run after joinSession method call has completed
      */
-    Status joinSession(JoinSessionSuccessListener successListener, ErrorListener errorListener, object parameters);
+    void joinSession(object parameters, statusCallback cb);
     /**
      * \brief Leaves an existing session.
      *
@@ -597,19 +634,19 @@ interface BusAttachment {
      * to the local daemon and interprets the response.
      *
      * \param id session id
+     * \param cb funtion to run after leaveSession method call has completed
      *
      * \return BUS_NOT_CONNECTED if a connection has not been made with a local bus.
      *         Other error status codes indicating a failure.
      */
-    Status leaveSession(SessionId id);
+    void leaveSession(SessionId id, statusCallback cb);
     /**
      * \brief Gets the file descriptor for a raw (non-message based) session.
      *
      * \param id ID of an existing streaming session
-     *
-     * \return socket file descriptor for session
+     * \param cb callback that will contain the socket file descriptor for session
      */
-    SocketFd getSessionFd(SessionId id);
+    void getSessionFd(SessionId id, socketFdCallback cb);
     /**
      * \brief Set the link timeout for a session.
      *
@@ -621,20 +658,14 @@ interface BusAttachment {
      * Each transport type defines a lower bound on link timeout to avoid defeating
      * transport specific power management algorithms.
      *
-     * Throws BusError ALLJOYN_SETLINKTIMEOUT_REPLY_NOT_SUPPORTED if local daemon does not
-     * support setLinkTimeout.  ALLJOYN_SETLINKTIMEOUT_REPLY_NO_DEST_SUPPORT if
-     * setLinkTimeout not supported by destination.  BUS_NO_SESSION if the session ID is
-     * not valid.  ALLJOYN_SETLINKTIMEOUT_REPLY_FAILED if setLinkTimeout failed.
-     * BUS_NOT_CONNECTED if the BusAttachment is not connected to the daemon.
-     *
      * \param id ID of session whose link timeout will be modified
      * \param linkTimeout max number of seconds that a link can be unresponsive before
      *                    being declared lost. 0 indicates that AllJoyn link monitoring
      *                    will be disabled.
-     * \return the resulting (possibly upward) adjusted linkTimeout value that
-     *         acceptable to the underlying transport
+     * \param cb callback that indicates the resulting (possibly upward) adjusted 
+     *           linkTimeout value that acceptable to the underlying transport
      */
-    unsigned long setLinkTimeout(SessionId id, unsigned long linkTimeout);
+    void setLinkTimeout(SessionId id, unsigned long linkTimeout, linkTimeoutCallback cb);
     /**
      * \brief Determines whether a given well-known name exists on the bus.
      *
@@ -642,10 +673,9 @@ interface BusAttachment {
      * call to the daemon and interprets the response.
      *
      * \param name The well known name that the caller is inquiring about
-     *
-     * \return hasOwner indicates whether name exists on the bus
+     * \param cb callback that indicates whether name exists on the bus
      */
-    boolean nameHasOwner(DOMString name);
+    void nameHasOwner(DOMString name, hasOwnerCallback cb);
     /**
      * \brief Sets the debug level of the local AllJoyn daemon if that daemon was built in debug
      * mode.
@@ -675,10 +705,10 @@ interface BusAttachment {
      *
      * \param _module name of the module to generate debug output
      * \param level debug level to set for the module
-     *
-     * \return BUS_NO_SUCH_OBJECT if daemon was not built in debug mode.
+     * \param cb the statusCallback will contain:
+     *           BUS_NO_SUCH_OBJECT if daemon was not built in debug mode.
      */
-    Status setDaemonDebug(DOMString _module, unsigned long level);
+    void setDaemonDebug(DOMString _module, unsigned long level, statusCallback cb);
     /**
      * \brief Enables peer-to-peer security. 
      *
@@ -689,9 +719,10 @@ interface BusAttachment {
      *                       authentication
      * \param listener an optional listener that receives password and other
      *                 authentication related requests
-     * \return OK if peer security was enabled
+     * \param cb callback function that is run once the call to enablePeerSecurity has completed
+     *           callback specifies status OK if peer security was enabled
      */
-    Status enablePeerSecurity(DOMString authMechanisms, optional AuthListener listener);
+    void enablePeerSecurity(DOMString authMechanisms, optional AuthListener listener, statusCallback cb);
     /**
      * \brief Reloads the key store for this bus attachment. 
      *
@@ -700,27 +731,31 @@ interface BusAttachment {
      * applications. It is up to the applications to coordinate how and when the shared
      * key store is modified.
      *
-     * \return OK if the key store was succesfully reloaded.  An error status indicating
-     *         that the key store reload failed.
+     * \param cb statusCallback will contain:
+     *           OK if the key store was succesfully reloaded.  
+     *           An error status indicating that the key store reload failed.
      */
-    Status reloadKeyStore();
+    void reloadKeyStore(statusCallback cb);
     /**
      * \brief Clears all stored keys from the key store. 
      *
      * All store keys and authentication information is deleted and cannot be
      * recovered. Any passwords or other credentials will need to be reentered when
      * establishing secure peer connections.
+     *
+     * \param cb callback function called after clearKeyStore has completed.
      */
-    void clearKeyStore();
+    void clearKeyStore(statusCallback cb);
     /**
      * \brief Clear the keys associated with a specific peer identified by its GUID.
      *
      * \param guid the guid of a remote authenticated peer
-     *
-     * \return OK if the key was cleared.  UNKNOWN_GUID if there is no peer with the
-     *         specified GUID.  Other error status codes indicating a failure.
+     * \param cb callback function that gets called after clearKeys have completed 
+     *        callback will return OK if the key was cleared.  
+     *        UNKNOWN_GUID if there is no peer with the specified GUID.  
+     *        Other error status codes indicating a failure.
      */
-    Status clearKeys(DOMString guid);
+    void clearKeys(DOMString guid, statusCallback cb);
     /**
      * \brief Set the expiration time on keys associated with a specific remote peer as
      * identified by its peer GUID.
@@ -731,12 +766,12 @@ interface BusAttachment {
      * \param guid the GUID of a remote authenticated peer
      * \param timeout the time in seconds relative to the current time to expire the
      *                keys
-     *
-     * \return OK if the expiration time was successfully set.  UNKNOWN_GUID if there is
-     *         no authenticated peer with the specified GUID.  Other error status codes
-     *         indicating a failure.
+     * \param cb the statusCallback will contain:
+     *           OK if the expiration time was successfully set.  
+     *           UNKNOWN_GUID if there is no authenticated peer with the specified GUID.  
+     *           Other error status codes indicating a failure.
      */
-    Status setKeyExpiration(DOMString guid, unsigned long timeout);
+    void setKeyExpiration(DOMString guid, unsigned long timeout, statusCallback cb);
     /**
      *\brief Get the expiration time on keys associated with a specific authenticated
      * remote peer as identified by its peer GUID.
@@ -748,10 +783,10 @@ interface BusAttachment {
      * with the specified GUID.  Other error status codes indicating a failure.
      *
      * \param guid the GUID of a remote authenticated peer
-     * \return the time in seconds relative to the current time when the keys will
-     *         expire
+     * \param cb A callback function that will be sent the time in seconds relative to the 
+     *           current time when the keys will expire
      */
-    unsigned long getKeyExpiration(DOMString guid);
+    void getKeyExpiration(DOMString guid, timeoutCallback cb);
     /**
      * \brief Adds a logon entry string for the requested authentication mechanism to the key store. 
      *
@@ -765,12 +800,13 @@ interface BusAttachment {
      * \param password the password to use for generating the logon entry. If the
      *                 password is <em>null</em> the logon entry is deleted from the key
      *                 store.
-     *
-     * \return OK if the logon entry was generated.  BUS_INVALID_AUTH_MECHANISM if the
-     *         authentication mechanism does not support logon functionality.  Other
-     *         error status codes indicating a failure.
+     * \param cb callback function that should be run after the logonEntry has 
+     *           been added. Status will be OK if the logon entry was generated.  
+     *           BUS_INVALID_AUTH_MECHANISM if the authentication mechanism 
+     *           does not support logon functionality. 
+     *           Other error status codes indicating a failure. 
      */
-    Status addLogonEntry(DOMString authMechanism, DOMString userName, DOMString password);
+    void addLogonEntry(DOMString authMechanism, DOMString userName, DOMString password, statusCallback cb);
     /**
      * \brief Gets the peer GUID for this peer or an authenticated remote peer. 
      *
@@ -780,10 +816,131 @@ interface BusAttachment {
      *
      * \param name name of a remote peer or <em>null</em> to get the local (our) peer
      *             GUID
-     * \return the guid for the local or remote peer depending on the value of name
+     * \param cb callback that will contain the guid for the local or remote peer depending on the value of name
      */
-    DOMString getPeerGUID(DOMString name);
+    void getPeerGUID(DOMString name, guidCallback cb);
+    /**
+     * \brief Check to see if peer security has been enabled for this bus attachment.
+     *
+     * \param cb callback which indicates if peer security is enabled
+     */
+    void getPeerSecurityEnabled(securityEnabledCallback cb);
+    /**
+     * \brief Gets a proxy to a remote bus object.
+     *
+     * \param name the name, object path, and optional arguments of the remote object of the
+     *             form "org.sample.Foo/foo:sessionId=42" where "org.sample.Foo" is the
+     *             well-known or unique name, "/foo" is the object path, and ":sessionId=42" is
+     *             the optional session ID the be used for communicating with the remote object
+     * \param cb a callback containing a proxy to the remote bus object at the name and object path
+     */
+    void getProxyBusObject(DOMString name, proxyBusObjectCallback cb);
+    /**
+     * \brief Returns the current non-absolute real-time clock used internally by AllJoyn. 
+     *
+     * This value can be compared with the timestamps on messages to calculate the 
+     * time since a timestamped message was sent.
+     *
+     * \param cb callback function that will contain the current timestamp in milliseconds.
+     */
+    void getTimestamp(timestampCallback cb);
 };
+
+/**
+ * \brief callback function containing a status code
+ * 
+ * When the previous method call was successful status will be undefined or null
+ * \param status AllJoyn status code
+ */
+callback statusCallback = void (Status status);
+
+/**
+ * \brief callback function containing the status code and SessionPort
+ *
+ * \param status AllJoyn status code
+ * \param port The sessionPort assigned as a result of the bindSessionPort method call.
+ */
+callback sessionPortCallback = void (Status status, SessionPort port);
+/**
+ * \brief callback function containing the status code and the InterfaceDescription
+ *
+ * \param status AllJoyn status code
+ * \param interfaceDescription an AllJoyn InterfaceDescription
+ */
+callback interfaceDescriptionCallback = void (Status status, InterfaceDescription interfaceDescription);
+/**
+ * \brief callback function containing the status code and a collection of InterfaceDescritptions
+ * 
+ * \param status AllJoyn status code
+ * \param interfaceDescriptions an array of interfaceDescriptions
+ * \param numIfaces the number of interfaces in the interfaceDescriptions param.
+ */
+callback interfaceDescriptionsCallback = void (Status status, InterfaceDescriptions[] interfaceDescriptions, unsigned long numIfaces);
+/**
+ * \brief callback function containing the time in seconds relative to the current time when the keys will expire
+ * 
+ * \param status AllJoyn status code 
+ * \param timeout The time in seconds relative to the current time when the keys will expire
+ */
+callback timeoutCallback = void (Status status, unsigned long timeout);
+/**
+ * \brief Returns the guid for the local or remote peer
+ *
+ * \param status AllJoyn status code
+ * \param guid the guid string for the local or remote peer
+ */
+callback guidCallback = void (Status status, DOMString guid);
+/**
+ * \brief true if peer security has been enabled, false otherwise.
+ *
+ * \param status AllJoyn status code
+ * \param enabled true if peer security has been enabled, false otherwise.
+ */ 
+callback securityEnabledCallback = void (Status status, boolean enabled);
+/**
+ * \brief callback function containing status code and proxyBusObject
+ *
+ * \param status AllJoyn status code
+ * \param proxyBusObject the requested ProxyBusObject
+ */
+callback proxyBusObjectCallback = void (Status status, ProxyBusObject proxyBusObject);
+/**
+ * \brief callback function containing the current timestamp in milliseconds
+ *
+ * \param status AllJoyn status code
+ * \param timestamp The current timestamp in milliseconds
+ */
+callback timestampCallback = void (Status status, unsigned long timestamp);
+/**
+ * \brief callback function containing the socket file descriptor for a session
+ *
+ * \param status AllJoyn status code
+ * \param socketFd socket fild descriptor for a session
+ */
+callback socketFdCallback = void (Status status, SocketFd socketFd);
+/**
+ * \brief callback function indicating if name ownership was able to be determined
+ *
+ * \param status AllJoyn status code
+ * \param hasOwner true if name exists on the bus. if status is not OK the hasOwner
+ *                 parameter is not modified.  
+ */
+callback hasOwnerCallback = void(Status status, boolean hasOwner);
+/**
+ * \brief callback function indicating the number of second that a link can be unresponcive
+ * 
+ * \param status AllJoyn status code:
+ *               OK if successful
+ *               ALLJOYN_SETLINKTIMEOUT_REPLY_NOT_SUPPORTED if local daemon does not support SetLinkTimeout
+ *               ALLJOYN_SETLINKTIMEOUT_REPLY_NO_DEST_SUPPORT if SetLinkTimeout not supported by destination
+ *               BUS_NO_SESSION if the Session id is not valid
+ *               ALLJOYN_SETLINKTIMEOUT_REPLY_FAILED if SetLinkTimeout failed
+ *               BUS_NOT_CONNECTED if the BusAttachment is not connected to the daemon
+ * \param linkTimeout this value will be the resulting (possibly upward) adjusted linkTimeout
+ *                    value that is acceptable to the underlying transport.
+ */
+callback linkTimeoutCallback = void (Status status, unsigned long linkTimeout); 
+
 
 /**
  * \brief A BusListener is called by AllJoyn to inform users of bus related events.
@@ -835,6 +992,17 @@ callback interface BusListener {
      */
     void onNameOwnerChanged(DOMString busName, DOMString previousOwner, DOMString newOwner);
     /**
+     * \brief Called by the bus when the value of a property changes if that property has annotation
+     *
+     * \param propName The property name that has changed.
+     * \param propValue The new value of the property; NULL if not present.
+     */
+    void onPropertyChanged(DOMString propName, any propValue);
+    /**
+     * \brief Called when a BusAttachment this listener is registered with is stopping
+     */
+    void onStopping();
+    /**
      * \brief Called when a BusAttachment this listener is registered with is has become
      * disconnected from the bus.
      */
@@ -883,6 +1051,44 @@ callback interface BusListener {
  */
 [NoInterfaceObject]
 callback interface BusObject {
+    /**
+     * Called by the message bus when the object has been successfully registered. The object can
+     * perform any initialization such as adding match rules at this time.
+     */
+    void onRegistered();
+    /**
+     * Called by the message bus when the object has been successfully unregistered
+     */
+    void onUnregistered();
+    /**
+     * \brief Emits a signal.
+     *
+     * The arguments are as described in <a href="#::ajn::ProxyMethod">ProxyMethod</a>,
+     * with one exception.  An optional additional argument containing parameters controlling
+     * the signal emission can be provided.  The additional argument is a native object with
+     * optional attributes:
+     * <dl>
+     * <dt><em>sessionId</em></dt>
+     * <dd>The sessionId to use for this emission or 0 for any</dd>
+     * <dt><em>destination</em></dt>
+     * <dd>The unique or well-known bus name or the signal recipient</dd>
+     * <dt><em>timeToLive</em></dt>
+     * <dd>If non-zero this specifies in milliseconds the useful lifetime for this signal. If
+     * delivery of the signal is delayed beyond the timeToLive due to network congestion or
+     * other factors the signal may be discarded. There is no guarantee that expired signals
+     * will not still be delivered.</dd>
+     * <dt><em>flags</em></dt>
+     * <dd>The logical OR of the message flags (ALLJOYN_FLAG_* constants) for this
+     * signal</dd>
+     * </dl>
+     * \param interfaceName the name of the interface that will emit the signal
+     * \param signalName the name of the signal
+     * \param args the message arguments.  The type of the arguments is determined by the method
+     *             or signal signature.
+     * \param params see above
+     * \param cb callback called once the signal has been emitted.
+     */
+    void signal(DOMString interfaceName, DOMString signalName, any... args, optional object params, statusCallback cb);
 };
 
 /**
@@ -1085,43 +1291,6 @@ dictionary InterfaceDescription {
 };
 
 /**
- * \brief Object containing all interface descriptions known about by the bus attachment.
- */
-[NoInterfaceObject]
-interface InterfaceDescriptions {
-    /**
-     * \brief Gets an interface description.
-     *
-     * \param interfaceName the name of the interface
-     * \return the named interface description if it exists, otherwise <em>undefined</em>.
-     */
-    getter InterfaceDescription getInterfaceDescription(DOMString interfaceName);
-    /**
-     * \brief Sets an interface description.
-     *
-     * Throws BusError BUS_BAD_INTERFACE_NAME if the name is invalid.
-     *
-     * \param interfaceName the name of the interface
-     * \param interfaceDescription the description object
-     */
-    setter void createInterfaceDescription(DOMString interfaceName, InterfaceDescription interfaceDescription);
-    /**
-     * \brief Initialize one more interface descriptions from an XML string in DBus
-     * introspection format.
-     *
-     * The root tag of the XML can be a \<node\> or a standalone \<interface\> tag. To
-     * initialize more than one interface the interfaces need to be nested in a \<node\> tag.
-     *
-     * Note that when this operation fails during parsing, the return code will be set accordingly.
-     * However, any interfaces which were successfully parsed prior to the failure may be
-     * registered with the bus.
-     *
-     * \param xml an XML string in DBus introspection format
-     */
-    Status parseXML(DOMString xml);
-};    
-
-/**
  * \brief The function invoked when the asynchronous joinSession call completes
  * successfully.
  *
@@ -1231,16 +1400,6 @@ interface Message {
      * 0 'zero' if sender did not specify a session.
      */
     readonly attribute SessionId sessionId;
-    /**
-     * \brief The timestamp (in milliseconds) for this message. 
-     *
-     * Read-only.
-     *
-     * If the message header contained a timestamp this is the estimated timestamp for when the
-     * message was sent by the remote device, otherwise it is the timestamp for when the message
-     * was unmarshaled.  Note that the timestamp is always relative to local time.
-     */
-    readonly attribute unsigned long timestamp;
 
     /**
      * \brief Replies to a method call.
@@ -1251,8 +1410,9 @@ interface Message {
      *
      * \param args the reply arguments.  The type of the arguments is determined by the method
      *             reply signature.
+     * \param cb the callback function run once the reply has been sent
      */
-    Status reply(any... args);
+    void reply(any... args, statusCallback cb);
     /* 
      * TODO Web IDL doesn't define exception constructors, so instead of one
      * replyError(in BusError error), there are two operations below.
@@ -1263,8 +1423,9 @@ interface Message {
      * Only valid in method callbacks.
      *
      * \param code the status code for the error
+     * \param code the callback function once the replyError has been sent
      */
-    Status replyError(Status code);
+    void replyError(Status code, statusCallback cb);
     /**
      * \brief Replies to a method call with an error message.
      *
@@ -1273,8 +1434,9 @@ interface Message {
      * \param name the name of the error.  The error name must follow the same restrictions as
      *             DBus interface names.
      * \param message an error message string
+     * \param cb the callback function run once the reply has been sent.
      */
-    Status replyError(DOMString name, optional DOMString message);
+    void replyError(DOMString name, optional DOMString message, statusCallback cb);
 };
 
 /**
@@ -1362,143 +1524,40 @@ interface ProxyBusObject {
      */
     readonly attribute DOMString serviceName;
     /**
-     * \brief The path descendants of this object (its children).
+     * \brief the session Id for this object
      *
-     * For example, if this object's path is "/foo/bar", then you can retrieve the
-     * ProxyBusObject for "/foo/bar/bat/baz" by calling proxy.children["bat/baz"].
-     *
-     * Read-only.  
-     *
-     * <em>null</em> if this object has no children.
+     * Read-only
      */
-    readonly attribute ProxyChildren children;
+    readonly attribute SessionId sessionId;
 
+    /**
+     * Obtains an array of ProxyBusObjects for the children of this ProxyBusObject.
+     *
+     * \param cb callback that contains an array of children to this ProxyBusObject
+     */
+    getter getChildren(childrenCallback cb);
     /**
      * \brief Gets a proxy to remote bus object interface.
      *
      * \param interfaceName the name of the interface
-     * \return a proxy to the interface of the remote bus object
+     * \param cb callback containing a interfaceDescription of the remote object
      */
-    getter ProxyInterface getProxyInterface(DOMString interfaceName);
+    getter getInterface(DOMString interfaceName, interfaceDescriptionCallback cb);
+    /**
+     * \brief Gets returns all the interfaces found on this object
+     * 
+     * \param cb callback containing an array of interfaceDescriptions found by this proxyBusObject
+     */
+    getter getInterfaces(interfaceDescriptionsCallback cb);
                 
     /**
      * \brief Query the remote object on the bus to determine the interfaces and children that
-     * exist. Use this information to populate this object's interfaces and children.
+     * exist. 
+     * This information is used to populate this object's interfaces and children.
      *
-     * This call executes asynchronously. When the introspection response is received from the
-     * actual remote object, this ProxyBusObject will be updated and the callback will be
-     * called.
-     *
-     * This call exists primarily to allow introspection of remote objects to be done inside
-     * AllJoyn method/signal/reply handlers and ObjectRegistered callbacks.
-     *
-     * \param successListener function invoked when the introspection completes successfully
-     * \param errorListener function invoked when the introspection completes with an error
+     * \param cb callback indicating success or failure of the introspect
      */
-    void introspect(SuccessListener successListener, ErrorListener errorListener);
-    /**
-     * \brief Introspect the remote object (across AllJoyn) and use the introspection data to
-     * populate this ProxyBusObject and any descendant ProxyBusObjects (stored in this object's
-     * children container) that are mentioned in the introspection data.
-     *
-     * Calling this operation does several things:
-     * <ul>
-     * <li> Create and register any new InterfaceDescription(s) that are mentioned in the XML.
-     *      (Interfaces that are already registered with the bus are left "as-is".)</li>
-     * <li> Add all the interfaces mentioned in the introspection data to this ProxyBusObject.</li>
-     * <li> Recursively create any child ProxyBusObject(s) and create/add their associated
-     *      interfaces as mentioned in the XML. Then add the descendant object(s) to the
-     *      appropriate descendant of this ProxyBusObject (in the children collection). If the
-     *      named child object already exists as a child of the appropriate ProxyBusObject, then
-     *      it is updated to include any new interfaces or children mentioned in the XML.</li>
-     * </ul>
-     *
-     * Note that when this operation fails during parsing, the operation will return an
-     * error <em>Status</em>.  However, any interfaces which were successfully parsed
-     * prior to the failure may be registered with the bus. Similarly, any objects that
-     * were successfully created before the failure will exist in this object's set of
-     * children.
-     *
-     * \param source the XML
-     */
-    Status parseXML(DOMString source);
-    /**
-     * \brief Secure the connection to the remote peer for this proxy object.
-     *
-     * Peer-to-peer connections can only be secured if enablePeerSecurity was previously
-     * called on the bus attachment for this proxy object. If the peer-to-peer
-     * connection is already secure this function does nothing. Note that peer-to-peer
-     * connections are automatically secured when a method call or signal requiring
-     * encryption is sent or received.
-     *
-     * Notification of success or failure is via the AuthListener passed to
-     * enablePeerSecurity.
-     * 
-     * \param forceAuth If <em>true</em>, forces a re-authentication even if the peer
-     *                  connection is already authenticated.  Defaults to
-     *                  <em>false</em>.
-     *
-     * \return OK if securing could begin.
-     *         BUS_NO_AUTHENTICATION_MECHANISM if enablePeerSecurity has not been
-     *         called.
-     *         Other error status codes indicating a failure.
-     */
-    Status secureConnection(optional boolean forceAuth);
-};
-
-/**
- * \brief Object containing proxies to all remote bus objects.
- */
-[NoInterfaceObject] 
-interface ProxyBusObjects {
-    /**
-     * \brief Gets a proxy to a remote bus object.
-     *
-     * \param name the name, object path, and optional arguments of the remote object of the
-     *             form "org.sample.Foo/foo:sessionId=42" where "org.sample.Foo" is the
-     *             well-known or unique name, "/foo" is the object path, and ":sessionId=42" is
-     *             the optional session ID the be used for communicating with the remote object
-     * \return a proxy to the remote bus object at the name and object path
-     */
-    getter ProxyBusObject getProxyBusObject(DOMString name);
-};
-
-/**
- * \brief Object containing proxies to all of a remote object's children.
- */
-[NoInterfaceObject]
-interface ProxyChildren {
-    /**
-     * \brief Gets a path descendant of an object (its child).
-     *
-     * \param relativeObjectPath the object path, relative to the parent object path, of the
-     *                           child object
-     * \return a proxy to the remote child bus object
-     */
-    getter ProxyBusObject getProxyBusObject(DOMString relativeObjectPath);
-};
-
-/**
- * \brief Proxy to a remote bus object interface.
- *
- * A proxy interface contains remote method proxies for all methods defined by the interface.
- */
-[NoInterfaceObject]
-interface ProxyInterface {
-    /**
-     * \brief Gets a proxy to remote bus object method.
-     *
-     * \param methodName the name of the method
-     * \return a proxy to the remote bus object method
-     */
-    getter ProxyMethod getProxyMethod(DOMString methodName);
-};
-
-/**
- * \brief Proxy to a remote bus object method.
- */
-[NoInterfaceObject]
-interface ProxyMethod {
+    void introspect(statusCallback cb);
     /**
      * \brief Invokes a remote bus object method.
      *
@@ -1536,14 +1595,74 @@ interface ProxyMethod {
      * method</dd>
      * </dl>
      *
-     * \param replyListener function invoked when the method call completes successfully.  This
-     *                      may be <em>null</em> for methods that do not expect a reply.
-     * \param errorListener function invoked when the method call completes with an error
+     * \param interfaceName the name of the interface the method being called belongs to.
+     * \param methodName the name of the method being called.
      * \param args the method arguments.  The type of the arguments is determined by the method
      *             signature.
+     * \param cb callback function run after methodCall has been made
      */
-    legacycaller void methodCall(MessageListener replyListener, ErrorListener errorListener, any... args);
+    void methodCall(DOMString interfaceName, DOMString methodName, any... args, statusCallback cb);
+    /**
+     * \brief Introspect the remote object (across AllJoyn) and use the introspection data to
+     * populate this ProxyBusObject and any descendant ProxyBusObjects (stored in this object's
+     * children container) that are mentioned in the introspection data.
+     *
+     * Calling this operation does several things:
+     * <ul>
+     * <li> Create and register any new InterfaceDescription(s) that are mentioned in the XML.
+     *      (Interfaces that are already registered with the bus are left "as-is".)</li>
+     * <li> Add all the interfaces mentioned in the introspection data to this ProxyBusObject.</li>
+     * <li> Recursively create any child ProxyBusObject(s) and create/add their associated
+     *      interfaces as mentioned in the XML. Then add the descendant object(s) to the
+     *      appropriate descendant of this ProxyBusObject (in the children collection). If the
+     *      named child object already exists as a child of the appropriate ProxyBusObject, then
+     *      it is updated to include any new interfaces or children mentioned in the XML.</li>
+     * </ul>
+     *
+     * Note that when this operation fails during parsing, the operation will return an
+     * error <em>Status</em>.  However, any interfaces which were successfully parsed
+     * prior to the failure may be registered with the bus. Similarly, any objects that
+     * were successfully created before the failure will exist in this object's set of
+     * children.
+     *
+     * \param source the XML
+     * \param cb callback function specifying:
+     *           OK if parsing is completely successful.
+     *           An error status otherwise.
+     */
+    void parseXML(DOMString source, statusCallback cb);
+    /**
+     * \brief Secure the connection to the remote peer for this proxy object.
+     *
+     * Peer-to-peer connections can only be secured if enablePeerSecurity was previously
+     * called on the bus attachment for this proxy object. If the peer-to-peer
+     * connection is already secure this function does nothing. Note that peer-to-peer
+     * connections are automatically secured when a method call or signal requiring
+     * encryption is sent or received.
+     *
+     * Notification of success or failure is via the AuthListener passed to
+     * enablePeerSecurity.
+     * 
+     * \param forceAuth If <em>true</em>, forces a re-authentication even if the peer
+     *                  connection is already authenticated.  Defaults to
+     *                  <em>false</em>.
+     * \param cb callback function indicating:
+     *           OK if securing could begin.
+     *           BUS_NO_AUTHENTICATION_MECHANISM if enablePeerSecurity has not been called.
+     *           Other error status codes indicating a failure.
+     */
+    void secureConnection(optional boolean forceAuth, statusCallback cb);
 };
+
+/**
+ * \brief callback containing an array of ProxyBusObjects that are children of the 
+ *        host ProxyBusObject
+ *
+ * \param status Alljoyn status object
+ * \param children and array of ProxyBusObjects
+ */
+callback childrenCallback = void (Status status, ProxyBusObject[] children);
+
 
 /**
  * \brief Called by the bus when a session has been successfully joined. The session is now
@@ -1660,42 +1779,6 @@ dictionary SignalDescription {
      */
     DOMString argNames;
 };
-
-/**
- * \brief Signal emitter.
- *
- * This interface is used to emit signals from a registered bus object.
- */
-[NoInterfaceObject]
-interface SignalEmitter {
-    /**
-     * \brief Emits a signal.
-     *
-     * The arguments are as described in <a href="#::ajn::ProxyMethod">ProxyMethod</a>,
-     * with one exception.  An optional additional argument containing parameters controlling
-     * the signal emission can be provided.  The additional argument is a native object with
-     * optional attributes:
-     * <dl>
-     * <dt><em>sessionId</em></dt>
-     * <dd>The sessionId to use for this emission or 0 for any</dd>
-     * <dt><em>destination</em></dt>
-     * <dd>The unique or well-known bus name or the signal recipient</dd>
-     * <dt><em>timeToLive</em></dt>
-     * <dd>If non-zero this specifies in milliseconds the useful lifetime for this signal. If
-     * delivery of the signal is delayed beyond the timeToLive due to network congestion or
-     * other factors the signal may be discarded. There is no guarantee that expired signals
-     * will not still be delivered.</dd>
-     * <dt><em>flags</em></dt>
-     * <dd>The logical OR of the message flags (ALLJOYN_FLAG_* constants) for this
-     * signal</dd>
-     * </dl>
-     *
-     * \param args the message arguments.  The type of the arguments is determined by the method
-     *             or signal signature.
-     */
-    legacycaller void emitSignal(any... args);
-};
-
 [/**
   * \brief Constructrs a new SocketFd from an existing socket descriptor.
   *
@@ -1802,7 +1885,7 @@ interface Version {
      * The numeric version is composed of the architecture level, API level, and
      * release.
      */
-    readonly attribute unsigned long version;
+    readonly attribute unsigned long numericVersion;
     /** 
      * \brief The architecture level. 
      *
@@ -1822,7 +1905,9 @@ interface Version {
      */
     readonly attribute unsigned long release;
     /** 
-     * \brief The version of AllJoyn library. 
+     * \brief The version of AllJoyn library.
+     *
+     * Read-only. 
      */
-    stringifier DOMString toString();
+    readonly attribute DOMString version;
 };
