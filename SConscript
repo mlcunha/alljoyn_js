@@ -59,6 +59,9 @@ elif env['OS_CONF'] == 'linux':
 # LOCAL_CFLAGS += -fvisibility=hidden
 # LOCAL_PRELINK_MODULE:=false
 
+# The return value is the collection of files installed in the build destination.
+returnValue = []
+
 # Make alljoyn_js dist a sub-directory of the alljoyn dist.  This avoids any conflicts with alljoyn dist targets.
 env['JS_DISTDIR'] = env['DISTDIR'] + '/js'
 
@@ -71,24 +74,24 @@ JavaScriptStatus('jni/Status.xml', 'jni/BusErrorInterface.cc')
 # AllJoyn plugin library
 libs = env.SConscript('$OBJDIR/jni/SConscript')
 if '' != env.subst('$GECKO_BASE'):
-    env.Install('$JS_DISTDIR/lib', libs)
+    returnValue += env.Install('$JS_DISTDIR/lib', libs)
 else:
-    env.Install('$JS_DISTDIR/libs/armeabi', libs)
+    returnValue += env.Install('$JS_DISTDIR/libs/armeabi', libs)
 
 # AllJoyn Cordova plugin - Java side
 if '' != env.subst('$CORDOVA_BASE'):
-    alljoyn_jar = env.SConscript('src/SConscript')
+    returnValue += env.SConscript('src/SConscript')
 
 # AllJoyn samples
-env.SConscript('samples/SConscript')
+returnValue += env.SConscript('samples/SConscript')
 
 # Plugin distributions
 if '' != env.subst('$GECKO_BASE'):
     if env['OS_CONF'] == 'windows':
-        env.Install('$JS_DISTDIR/plugin', ['alljoyn64.reg', 'alljoyn.reg', '$JS_DISTDIR/lib/npalljoyn.dll'])
+        returnValue += env.Install('$JS_DISTDIR/plugin', ['alljoyn64.reg', 'alljoyn.reg', '$JS_DISTDIR/lib/npalljoyn.dll'])
 # TODO
 #    Widl('assets/www/alljoyn.js.in', 'jni/Status.xml', 'assets/www/alljoyn.js')
-#    env.Install('$JS_DISTDIR/assets/www', 'assets/www/alljoyn.js')
+#    returnValue += env.Install('$JS_DISTDIR/assets/www', 'assets/www/alljoyn.js')
 
 # Build docs
 def widlproc_cmd(widl, wxml):
@@ -118,5 +121,7 @@ if 'WIDLPROC' in env:
             ' ' + File(os.path.dirname(env['WIDLPROC']) + '/../src/widlprocxmltohtml.xsl').path +
             ' ' + File('docs/alljoyn.wxml').path
             ])
-    env.Install('docs/html', 'docs/icon.png')
-    env.Install('docs/html', 'docs/widlhtml.css')
+    returnValue += env.Install('docs/html', 'docs/icon.png')
+    returnValue += env.Install('docs/html', 'docs/widlhtml.css')
+
+Return('returnValue')

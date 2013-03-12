@@ -1,4 +1,4 @@
-# Copyright 2012, Qualcomm Innovation Center, Inc.
+# Copyright 2012 - 2013, Qualcomm Innovation Center, Inc.
 # 
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -20,6 +20,9 @@ if '' != env.subst('$GECKO_BASE'):
 else:
     distdir = '$JS_DISTDIR/samples/%s/assets/www'
 
+# The return value is the collection of files installed in the build destination.
+returnValue = []
+
 for sample in ['addressbook/client',
                'addressbook/service',
                'chat',
@@ -31,13 +34,15 @@ for sample in ['addressbook/client',
                #'streaming/source']:
     env.Install(distdir % sample, env.Glob('%s/*' % sample))
     if '' != env.subst('$GECKO_BASE'):
-        env.Install(distdir % sample, '../js/npapi/alljoyn_init.js');
+        returnValue += env.Install(distdir % sample, '../js/npapi/alljoyn_init.js');
     else:
-        env.Install(distdir % sample, '../js/cordova/alljoyn_init.js');
+        returnValue += env.Install(distdir % sample, '../js/cordova/alljoyn_init.js');
 
 for sample in ['simple/client',
                'simple/service']:
-    env.Install((distdir + '/js') % sample, 'simple/simple.js')
+    returnValue += env.Install((distdir + '/js') % sample, 'simple/simple.js')
 #for sample in ['streaming/sink',
 #               'streaming/source']:
-#    env.Install((distdir + '/js') % sample, 'streaming/alljoyn.js')
+#    returnValue += env.Install((distdir + '/js') % sample, 'streaming/alljoyn.js')
+
+Return('returnValue')
