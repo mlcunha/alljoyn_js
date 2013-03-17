@@ -1073,8 +1073,9 @@ callback interface BusObject {
      * <dt><em>destination</em></dt>
      * <dd>The unique or well-known bus name or the signal recipient</dd>
      * <dt><em>timeToLive</em></dt>
-     * <dd>If non-zero this specifies in milliseconds the useful lifetime for this signal. If
-     * delivery of the signal is delayed beyond the timeToLive due to network congestion or
+     * <dd>If non-zero this specifies the useful lifetime for this signal. 
+	 * The units are milliseconds for non-sessionless signals and seconds for sessionless signals.
+	 * If delivery of the signal is delayed beyond the timeToLive due to network congestion or
      * other factors the signal may be discarded. There is no guarantee that expired signals
      * will not still be delivered.</dd>
      * <dt><em>flags</em></dt>
