@@ -132,3 +132,5 @@ clean:
 distclean: clean
 	@rm -rf $(INSTALLDIR)/dist/js/lib
 
+jstest:
+	/bin/bash jsunit.sh $(INSTALLDIR)
