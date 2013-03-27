@@ -55,7 +55,6 @@ AsyncTestCase("BusObjectTest", {
             };
             var done = function(err) {
                 assertEquals('org.alljoyn.Bus.ErStatus', err.name);
-                assertEquals('ER_BUS_OBJECT_NO_SUCH_MEMBER', err.message);
                 assertEquals(err.BUS_OBJECT_NO_SUCH_MEMBER, err.code);
             };
             this._setUp(callbacks.add(connect));
