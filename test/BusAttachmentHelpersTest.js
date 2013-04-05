@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Qualcomm Innovation Center, Inc.
+ * Copyright 2011, 2013 Qualcomm Innovation Center, Inc.
  * 
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -91,6 +91,23 @@ AsyncTestCase("BusAttachmentHelpersTest", {
                 assertUndefined(err)
             };
             this._setUp(callbacks.add(findAdvertisedName));
+        });
+    },
+
+    testFindCancelFindAdvertisedNameByTransport: function(queue) {
+        queue.call(function(callbacks) {
+            var findAdvertisedNameByTransport = function(err) {
+                assertUndefined(err)
+                bus.findAdvertisedNameByTransport("org.alljoyn.testName", 0xffff, callbacks.add(cancelFindAdvertisedNameByTransport));
+            };
+            var cancelFindAdvertisedNameByTransport = function(err) {
+                assertUndefined(err)
+                bus.cancelFindAdvertisedNameByTransport("org.alljoyn.testName", 0xffff, callbacks.add(done));
+            };
+            var done = function(err) {
+                assertUndefined(err)
+            };
+            this._setUp(callbacks.add(findAdvertisedNameByTransport));
         });
     },
 

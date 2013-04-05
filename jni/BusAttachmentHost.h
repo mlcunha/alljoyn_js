@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012, Qualcomm Innovation Center, Inc.
+ * Copyright 2011-2013, Qualcomm Innovation Center, Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -57,6 +57,7 @@ class _BusAttachmentHost : public ScriptableObject {
     bool bindSessionPort(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool cancelAdvertiseName(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool cancelFindAdvertisedName(const NPVariant* args, uint32_t argCount, NPVariant* result);
+    bool cancelFindAdvertisedNameByTransport(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool clearKeyStore(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool clearKeys(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool connect(const NPVariant* args, uint32_t argCount, NPVariant* result);
@@ -67,6 +68,7 @@ class _BusAttachmentHost : public ScriptableObject {
     bool disconnect(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool enablePeerSecurity(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool findAdvertisedName(const NPVariant* args, uint32_t argCount, NPVariant* result);
+    bool findAdvertisedNameByTransport(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool getInterface(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool getInterfaces(const NPVariant* args, uint32_t argCount, NPVariant* result);
     bool getKeyExpiration(const NPVariant* args, uint32_t argCount, NPVariant* result);

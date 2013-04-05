@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012, Qualcomm Innovation Center, Inc.
+ * Copyright 2011-2013, Qualcomm Innovation Center, Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -1039,6 +1039,7 @@ _BusAttachmentHost::_BusAttachmentHost(Plugin& plugin)
     OPERATION("bindSessionPort", &_BusAttachmentHost::bindSessionPort);
     OPERATION("cancelAdvertiseName", &_BusAttachmentHost::cancelAdvertiseName);
     OPERATION("cancelFindAdvertisedName", &_BusAttachmentHost::cancelFindAdvertisedName);
+    OPERATION("cancelFindAdvertisedNameByTransport", &_BusAttachmentHost::cancelFindAdvertisedNameByTransport);
     OPERATION("clearKeyStore", &_BusAttachmentHost::clearKeyStore);
     OPERATION("clearKeys", &_BusAttachmentHost::clearKeys);
     OPERATION("connect", &_BusAttachmentHost::connect);
@@ -1049,6 +1050,7 @@ _BusAttachmentHost::_BusAttachmentHost(Plugin& plugin)
     OPERATION("destroy", &_BusAttachmentHost::destroy);
     OPERATION("enablePeerSecurity", &_BusAttachmentHost::enablePeerSecurity);
     OPERATION("findAdvertisedName", &_BusAttachmentHost::findAdvertisedName);
+    OPERATION("findAdvertisedNameByTransport", &_BusAttachmentHost::findAdvertisedNameByTransport);
     OPERATION("getInterface", &_BusAttachmentHost::getInterface);
     OPERATION("getInterfaces", &_BusAttachmentHost::getInterfaces);
     OPERATION("getKeyExpiration", &_BusAttachmentHost::getKeyExpiration);
@@ -2082,6 +2084,51 @@ exit:
     return !typeError;
 }
 
+bool _BusAttachmentHost::findAdvertisedNameByTransport(const NPVariant* args, uint32_t argCount, NPVariant* result)
+{
+    QCC_DbgTrace(("%s", __FUNCTION__));
+
+    bool typeError = false;
+    QStatus status = ER_OK;
+    qcc::String namePrefix;
+    uint16_t transports;
+    CallbackNative* callbackNative = 0;
+
+    if (argCount < 3) {
+        typeError = true;
+        plugin->RaiseTypeError("not enough arguments");
+        goto exit;
+    }
+    namePrefix = ToDOMString(plugin, args[0], typeError);
+    if (typeError) {
+        plugin->RaiseTypeError("argument 0 is not a string");
+        goto exit;
+    }
+    transports = ToUnsignedShort(plugin, args[1], typeError);
+    if (typeError) {
+        plugin->RaiseTypeError("argument 1 is not a number");
+        goto exit;
+    }
+    callbackNative = ToNativeObject<CallbackNative>(plugin, args[2], typeError);
+    if (typeError || !callbackNative) {
+        typeError = true;
+        plugin->RaiseTypeError("argument 2 is not an object");
+        goto exit;
+    }
+    QCC_DbgTrace(("namePrefix=%s,transports=0x%x", namePrefix.c_str(), transports));
+
+    status = (*busAttachment)->FindAdvertisedNameByTransport(namePrefix.c_str(), transports);
+
+exit:
+    if (!typeError && callbackNative) {
+        CallbackNative::DispatchCallback(plugin, callbackNative, status);
+        callbackNative = 0;
+    }
+    delete callbackNative;
+    VOID_TO_NPVARIANT(*result);
+    return !typeError;
+}
+
 bool _BusAttachmentHost::cancelFindAdvertisedName(const NPVariant* args, uint32_t argCount, NPVariant* result)
 {
     QCC_DbgTrace(("%s", __FUNCTION__));
@@ -2110,6 +2157,51 @@ bool _BusAttachmentHost::cancelFindAdvertisedName(const NPVariant* args, uint32_
     QCC_DbgTrace(("namePrefix=%s", namePrefix.c_str()));
 
     status = (*busAttachment)->CancelFindAdvertisedName(namePrefix.c_str());
+
+exit:
+    if (!typeError && callbackNative) {
+        CallbackNative::DispatchCallback(plugin, callbackNative, status);
+        callbackNative = 0;
+    }
+    delete callbackNative;
+    VOID_TO_NPVARIANT(*result);
+    return !typeError;
+}
+
+bool _BusAttachmentHost::cancelFindAdvertisedNameByTransport(const NPVariant* args, uint32_t argCount, NPVariant* result)
+{
+    QCC_DbgTrace(("%s", __FUNCTION__));
+
+    bool typeError = false;
+    QStatus status = ER_OK;
+    qcc::String namePrefix;
+    uint16_t transports;
+    CallbackNative* callbackNative = 0;
+
+    if (argCount < 3) {
+        typeError = true;
+        plugin->RaiseTypeError("not enough arguments");
+        goto exit;
+    }
+    namePrefix = ToDOMString(plugin, args[0], typeError);
+    if (typeError) {
+        plugin->RaiseTypeError("argument 0 is not a string");
+        goto exit;
+    }
+    transports = ToUnsignedShort(plugin, args[1], typeError);
+    if (typeError) {
+        plugin->RaiseTypeError("argument 1 is not a number");
+        goto exit;
+    }
+    callbackNative = ToNativeObject<CallbackNative>(plugin, args[2], typeError);
+    if (typeError || !callbackNative) {
+        typeError = true;
+        plugin->RaiseTypeError("argument 2 is not an object");
+        goto exit;
+    }
+    QCC_DbgTrace(("namePrefix=%s,transports=0x%x", namePrefix.c_str(), transports));
+
+    status = (*busAttachment)->CancelFindAdvertisedNameByTransport(namePrefix.c_str(), transports);
 
 exit:
     if (!typeError && callbackNative) {
