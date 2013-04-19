@@ -262,4 +262,66 @@ AsyncTestCase("SessionTest", {
         });
     },
 
+
+    testBinderMemberAddedRemoved2: function(queue) {
+        // Regression test for ALLJOYN-1938
+        queue.call(function(callbacks) {
+            var otherBusCreate = function(err) {
+                assertFalsy(err);
+                otherBus = new org.alljoyn.bus.BusAttachment();
+                otherBus.create(false, callbacks.add(otherBusConnect));
+            };
+            var otherBusConnect = function(err) {
+                assertFalsy(err);
+                otherBus.connect(callbacks.add(bindSessionPort));
+            };
+            var onAccept = function(port, joiner, opts) {
+                return true;
+            };
+            var onJoined = function(port, id, joiner) {
+            };
+            var onMemberAdded = function(id, uniqueName) {
+            };
+            var onMemberRemoved = function(id, uniqueName) {
+            };
+            var bindSessionPort = function(err) {
+                assertFalsy(err);
+                var sessionOpts = { isMultipoint: true,
+                                    onAccept: callbacks.add(onAccept, 2),
+                                    onJoined: callbacks.add(onJoined, 2),
+                                    onMemberAdded: callbacks.add(onMemberAdded, 2),
+                                    onMemberRemoved: callbacks.add(onMemberRemoved, 2) };
+                otherBus.bindSessionPort(sessionOpts, callbacks.add(connect));
+            };
+            var port;
+            var connect = function(err, sessionPort) {
+                assertFalsy(err);
+                port = sessionPort;
+                bus.connect(callbacks.add(joinSession));
+            };
+            var joinSession = function(err) {
+                assertFalsy(err);
+                bus.joinSession({ host: otherBus.uniqueName,
+                                  port: port }, callbacks.add(onJoinSession));
+            };
+            var onJoinSession = function(err, id, opts) {
+                assertFalsy(err);
+                bus.leaveSession(id, callbacks.add(joinSession2));
+            };
+            var joinSession2 = function(err) {
+                assertFalsy(err);
+                bus.joinSession({ host: otherBus.uniqueName,
+                                  port: port }, callbacks.add(onJoinSession2));
+            };
+            var onJoinSession2 = function(err, id, opts) {
+                assertFalsy(err);
+                bus.leaveSession(id, callbacks.add(done));
+            };
+            var done = function(err) {
+                assertFalsy(err);
+            };
+            this._setUp(callbacks.add(otherBusCreate));
+        });
+    },
+
 });
