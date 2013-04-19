@@ -96,6 +96,7 @@ class SignalReceiver : public ajn::MessageReceiver {
     }
 };
 
+
 class BusListener : public ajn::BusListener {
   public:
     class _Env {
@@ -284,6 +285,7 @@ class BusListener : public ajn::BusListener {
     }
 };
 
+
 class SessionListener : public ajn::SessionListener {
   public:
     class _Env {
@@ -293,38 +295,67 @@ class SessionListener : public ajn::SessionListener {
         SessionLostListenerNative* sessionLostListenerNative;
         SessionMemberAddedListenerNative* sessionMemberAddedListenerNative;
         SessionMemberRemovedListenerNative* sessionMemberRemovedListenerNative;
-        _Env(Plugin& plugin, BusAttachment& busAttachment, SessionLostListenerNative* sessionLostListenerNative, SessionMemberAddedListenerNative* sessionMemberAddedListenerNative, SessionMemberRemovedListenerNative* sessionMemberRemovedListenerNative)
-            : plugin(plugin)
-            , busAttachment(busAttachment)
-            , sessionLostListenerNative(sessionLostListenerNative)
-            , sessionMemberAddedListenerNative(sessionMemberAddedListenerNative)
-            , sessionMemberRemovedListenerNative(sessionMemberRemovedListenerNative) { }
+        _Env(Plugin& plugin,
+             BusAttachment& busAttachment,
+             SessionLostListenerNative* sessionLostListenerNative,
+             SessionMemberAddedListenerNative* sessionMemberAddedListenerNative,
+             SessionMemberRemovedListenerNative* sessionMemberRemovedListenerNative) :
+            plugin(plugin),
+            busAttachment(busAttachment),
+            sessionLostListenerNative(sessionLostListenerNative),
+            sessionMemberAddedListenerNative(sessionMemberAddedListenerNative),
+            sessionMemberRemovedListenerNative(sessionMemberRemovedListenerNative)
+        { }
+
+        _Env(Plugin& plugin,
+             BusAttachment& busAttachment) :
+            plugin(plugin),
+            busAttachment(busAttachment),
+            sessionLostListenerNative(NULL),
+            sessionMemberAddedListenerNative(NULL),
+            sessionMemberRemovedListenerNative(NULL)
+        { }
+
         ~_Env() {
             delete sessionLostListenerNative;
             delete sessionMemberAddedListenerNative;
             delete sessionMemberRemovedListenerNative;
         }
     };
+
     typedef qcc::ManagedObj<_Env> Env;
     Env env;
-    SessionListener(Plugin& plugin, BusAttachment& busAttachment, SessionLostListenerNative* sessionLostListenerNative, SessionMemberAddedListenerNative* sessionMemberAddedListenerNative, SessionMemberRemovedListenerNative* sessionMemberRemovedListenerNative)
-        : env(plugin, busAttachment, sessionLostListenerNative, sessionMemberAddedListenerNative, sessionMemberRemovedListenerNative) { }
+
+    SessionListener(Plugin& plugin,
+                    BusAttachment& busAttachment,
+                    SessionLostListenerNative* sessionLostListenerNative,
+                    SessionMemberAddedListenerNative* sessionMemberAddedListenerNative,
+                    SessionMemberRemovedListenerNative* sessionMemberRemovedListenerNative) :
+        env(plugin, busAttachment, sessionLostListenerNative, sessionMemberAddedListenerNative, sessionMemberRemovedListenerNative)
+    { }
+
+    SessionListener(Plugin& plugin, BusAttachment& busAttachment, Env& env) : env(env) { }
+
+    SessionListener(Plugin& plugin, BusAttachment& busAttachment) : env(plugin, busAttachment) { }
+
     virtual ~SessionListener() { }
 
     class SessionLostContext : public PluginData::CallbackContext {
       public:
         Env env;
         ajn::SessionId id;
-        SessionLostContext(Env& env, ajn::SessionId id)
-            : env(env)
-            , id(id) { }
+        SessionLostContext(Env& env, ajn::SessionId id) : env(env), id(id) { }
     };
-    virtual void SessionLost(ajn::SessionId id) {
+
+    virtual void SessionLost(ajn::SessionId id)
+    {
         PluginData::Callback callback(env->plugin, _SessionLost);
         callback->context = new SessionLostContext(env, id);
         PluginData::DispatchCallback(callback);
     }
-    static void _SessionLost(PluginData::CallbackContext* ctx) {
+
+    static void _SessionLost(PluginData::CallbackContext* ctx)
+    {
         SessionLostContext* context = static_cast<SessionLostContext*>(ctx);
         if (context->env->sessionLostListenerNative) {
             context->env->sessionLostListenerNative->onLost(context->id);
@@ -336,17 +367,22 @@ class SessionListener : public ajn::SessionListener {
         Env env;
         ajn::SessionId id;
         qcc::String uniqueName;
-        SessionMemberAddedContext(Env& env, ajn::SessionId id, const char* uniqueName)
-            : env(env)
-            , id(id)
-            , uniqueName(uniqueName) { }
+        SessionMemberAddedContext(Env& env, ajn::SessionId id, const char* uniqueName) :
+            env(env),
+            id(id),
+            uniqueName(uniqueName)
+        { }
     };
-    virtual void SessionMemberAdded(ajn::SessionId id, const char* uniqueName) {
+
+    virtual void SessionMemberAdded(ajn::SessionId id, const char* uniqueName)
+    {
         PluginData::Callback callback(env->plugin, _SessionMemberAdded);
         callback->context = new SessionMemberAddedContext(env, id, uniqueName);
         PluginData::DispatchCallback(callback);
     }
-    static void _SessionMemberAdded(PluginData::CallbackContext* ctx) {
+
+    static void _SessionMemberAdded(PluginData::CallbackContext* ctx)
+    {
         SessionMemberAddedContext* context = static_cast<SessionMemberAddedContext*>(ctx);
         if (context->env->sessionMemberAddedListenerNative) {
             context->env->sessionMemberAddedListenerNative->onMemberAdded(context->id, context->uniqueName);
@@ -363,12 +399,16 @@ class SessionListener : public ajn::SessionListener {
             , id(id)
             , uniqueName(uniqueName) { }
     };
-    virtual void SessionMemberRemoved(ajn::SessionId id, const char* uniqueName) {
+
+    virtual void SessionMemberRemoved(ajn::SessionId id, const char* uniqueName)
+    {
         PluginData::Callback callback(env->plugin, _SessionMemberRemoved);
         callback->context = new SessionMemberRemovedContext(env, id, uniqueName);
         PluginData::DispatchCallback(callback);
     }
-    static void _SessionMemberRemoved(PluginData::CallbackContext* ctx) {
+
+    static void _SessionMemberRemoved(PluginData::CallbackContext* ctx)
+    {
         SessionMemberRemovedContext* context = static_cast<SessionMemberRemovedContext*>(ctx);
         if (context->env->sessionMemberRemovedListenerNative) {
             context->env->sessionMemberRemovedListenerNative->onMemberRemoved(context->id, context->uniqueName);
@@ -376,8 +416,10 @@ class SessionListener : public ajn::SessionListener {
     }
 };
 
+
 class SessionPortListener : public ajn::SessionPortListener {
   public:
+
     class _Env {
       public:
         Plugin plugin;
@@ -390,25 +432,44 @@ class SessionPortListener : public ajn::SessionPortListener {
         BusAttachment busAttachment;
         AcceptSessionJoinerListenerNative* acceptSessionListenerNative;
         SessionJoinedListenerNative* sessionJoinedListenerNative;
-        SessionListener* sessionListener;
-        _Env(Plugin& plugin, _BusAttachmentHost* busAttachmentHost, BusAttachment& busAttachment, AcceptSessionJoinerListenerNative* acceptSessionListenerNative, SessionJoinedListenerNative* sessionJoinedListenerNative, SessionListener* sessionListener)
-            : plugin(plugin)
-            , busAttachmentHost(busAttachmentHost)
-            , busAttachment(busAttachment)
-            , acceptSessionListenerNative(acceptSessionListenerNative)
-            , sessionJoinedListenerNative(sessionJoinedListenerNative)
-            , sessionListener(sessionListener) { }
-        ~_Env() {
+        SessionListener::Env sessionListenerEnv;
+
+        _Env(Plugin& plugin,
+             _BusAttachmentHost* busAttachmentHost,
+             BusAttachment& busAttachment,
+             AcceptSessionJoinerListenerNative* acceptSessionListenerNative,
+             SessionJoinedListenerNative* sessionJoinedListenerNative,
+             SessionListener::Env sessionListenerEnv) :
+            plugin(plugin),
+            busAttachmentHost(busAttachmentHost),
+            busAttachment(busAttachment),
+            acceptSessionListenerNative(acceptSessionListenerNative),
+            sessionJoinedListenerNative(sessionJoinedListenerNative),
+            sessionListenerEnv(sessionListenerEnv)
+        { }
+
+        ~_Env()
+        {
             delete sessionJoinedListenerNative;
             delete acceptSessionListenerNative;
-            delete sessionListener;
         }
     };
+
     typedef qcc::ManagedObj<_Env> Env;
+
+
     Env env;
     qcc::Event cancelEvent;
-    SessionPortListener(Plugin& plugin, _BusAttachmentHost* busAttachmentHost, BusAttachment& busAttachment, AcceptSessionJoinerListenerNative* acceptSessionListenerNative, SessionJoinedListenerNative* sessionJoinedListenerNative, SessionListener* sessionListener)
-        : env(plugin, busAttachmentHost, busAttachment, acceptSessionListenerNative, sessionJoinedListenerNative, sessionListener) { }
+
+    SessionPortListener(Plugin& plugin,
+                        _BusAttachmentHost* busAttachmentHost,
+                        BusAttachment& busAttachment,
+                        AcceptSessionJoinerListenerNative* acceptSessionListenerNative,
+                        SessionJoinedListenerNative* sessionJoinedListenerNative,
+                        SessionListener::Env sessionListenerEnv) :
+        env(plugin, busAttachmentHost, busAttachment, acceptSessionListenerNative, sessionJoinedListenerNative, sessionListenerEnv)
+    { }
+
     virtual ~SessionPortListener() { }
 
     class AcceptSessionJoinerContext : public PluginData::CallbackContext {
@@ -417,12 +478,14 @@ class SessionPortListener : public ajn::SessionPortListener {
         ajn::SessionPort sessionPort;
         qcc::String joiner;
         const ajn::SessionOpts opts;
-        AcceptSessionJoinerContext(Env& env, ajn::SessionPort sessionPort, const char* joiner, const ajn::SessionOpts& opts)
-            : env(env)
-            , sessionPort(sessionPort)
-            , joiner(joiner)
-            , opts(opts) { }
+        AcceptSessionJoinerContext(Env& env, ajn::SessionPort sessionPort, const char* joiner, const ajn::SessionOpts& opts) :
+            env(env),
+            sessionPort(sessionPort),
+            joiner(joiner),
+            opts(opts)
+        { }
     };
+
     virtual bool AcceptSessionJoiner(ajn::SessionPort sessionPort, const char* joiner, const ajn::SessionOpts& opts) {
         PluginData::Callback callback(env->plugin, _AcceptSessionJoiner);
         callback->context = new AcceptSessionJoinerContext(env, sessionPort, joiner, opts);
@@ -439,14 +502,17 @@ class SessionPortListener : public ajn::SessionPortListener {
         std::vector<qcc::Event*> check;
         check.push_back(&callback->context->event);
         check.push_back(&cancelEvent);
+
         std::vector<qcc::Event*> signaled;
         signaled.clear();
+
         env->busAttachment->EnableConcurrentCallbacks();
         QStatus status = qcc::Event::Wait(check, signaled);
         assert(ER_OK == status);
         if (ER_OK != status) {
             QCC_LogError(status, ("Wait failed"));
         }
+
         for (std::vector<qcc::Event*>::iterator i = signaled.begin(); i != signaled.end(); ++i) {
             if (*i == &cancelEvent) {
                 PluginData::CancelCallback(callback);
@@ -456,6 +522,7 @@ class SessionPortListener : public ajn::SessionPortListener {
         }
         return (ER_OK == callback->context->status);
     }
+
     static void _AcceptSessionJoiner(PluginData::CallbackContext* ctx) {
         AcceptSessionJoinerContext* context = static_cast<AcceptSessionJoinerContext*>(ctx);
         if (context->env->acceptSessionListenerNative) {
@@ -475,31 +542,36 @@ class SessionPortListener : public ajn::SessionPortListener {
         ajn::SessionId id;
         qcc::String joiner;
         SessionListener* sessionListener;
-        SessionJoinedContext(Env& env, BusAttachmentHost& busAttachmentHost, ajn::SessionPort sessionPort, ajn::SessionId id, const char* joiner)
-            : env(env)
-            , busAttachmentHost(busAttachmentHost)
-            , sessionPort(sessionPort)
-            , id(id)
-            , joiner(joiner) {
-            sessionListener = env->sessionListener;
-            env->sessionListener = 0; /* this now owns sessionListener */
-        }
-        virtual ~SessionJoinedContext() {
-            if (sessionListener) {
-                env->busAttachment->SetSessionListener(id, 0);
-                delete sessionListener;
-            }
-        }
+
+        SessionJoinedContext(Env& env, BusAttachmentHost& busAttachmentHost, ajn::SessionPort sessionPort, ajn::SessionId id, const char* joiner, SessionListener* sessionListener) :
+            env(env),
+            busAttachmentHost(busAttachmentHost),
+            sessionPort(sessionPort),
+            id(id),
+            joiner(joiner),
+            sessionListener(sessionListener)
+        { }
+
+        virtual ~SessionJoinedContext()
+        { }
     };
+
     virtual void SessionJoined(ajn::SessionPort sessionPort, ajn::SessionId id, const char* joiner) {
+        SessionListener* sessionListener = NULL;
+
         /*
          * We have to do this here, otherwise we can miss the session member added callback (the app won't have called
          * setSessionListener soon enough).
          */
-        if (env->sessionListener) {
-            QStatus status = env->busAttachment->SetSessionListener(id, env->sessionListener);
-            if (ER_OK != status) {
+
+        if (env->sessionListenerEnv->sessionLostListenerNative ||
+            env->sessionListenerEnv->sessionMemberAddedListenerNative ||
+            env->sessionListenerEnv->sessionMemberRemovedListenerNative) {
+            sessionListener = new SessionListener(env->plugin, env->busAttachment, env->sessionListenerEnv);
+            QStatus status = env->busAttachment->SetSessionListener(id, sessionListener);
+            if (status != ER_OK) {
                 QCC_LogError(status, ("SetSessionListener failed"));
+                delete sessionListener;
             }
         }
         /*
@@ -509,21 +581,22 @@ class SessionPortListener : public ajn::SessionPortListener {
          */
         BusAttachmentHost busAttachmentHost = BusAttachmentHost::wrap(env->busAttachmentHost);
         PluginData::Callback callback(env->plugin, _SessionJoined);
-        callback->context = new SessionJoinedContext(env, busAttachmentHost, sessionPort, id, joiner);
+        callback->context = new SessionJoinedContext(env, busAttachmentHost, sessionPort, id, joiner, sessionListener);
         PluginData::DispatchCallback(callback);
     }
+
     static void _SessionJoined(PluginData::CallbackContext* ctx) {
         SessionJoinedContext* context = static_cast<SessionJoinedContext*>(ctx);
         if (context->sessionListener) {
             std::pair<ajn::SessionId, SessionListener*> element(context->id, context->sessionListener);
             context->busAttachmentHost->sessionListeners.insert(element);
-            context->sessionListener = 0; /* sessionListeners now owns sessionListener */
         }
         if (context->env->sessionJoinedListenerNative) {
             context->env->sessionJoinedListenerNative->onJoined(context->sessionPort, context->id, context->joiner);
         }
     }
 };
+
 
 class JoinSessionAsyncCB : public ajn::BusAttachment::JoinSessionAsyncCB {
   public:
@@ -551,8 +624,14 @@ class JoinSessionAsyncCB : public ajn::BusAttachment::JoinSessionAsyncCB {
     };
     typedef qcc::ManagedObj<_Env> Env;
     Env env;
-    JoinSessionAsyncCB(Plugin& plugin, BusAttachmentHost& busAttachmentHost, BusAttachment& busAttachment, CallbackNative* callbackNative, SessionListener* sessionListener)
-        : env(plugin, busAttachmentHost, busAttachment, callbackNative, sessionListener) { }
+    JoinSessionAsyncCB(Plugin& plugin,
+                       BusAttachmentHost& busAttachmentHost,
+                       BusAttachment& busAttachment,
+                       CallbackNative* callbackNative,
+                       SessionListener* sessionListener) :
+        env(plugin, busAttachmentHost, busAttachment, callbackNative, sessionListener)
+    { }
+
     virtual ~JoinSessionAsyncCB() { }
 
     class JoinSessionCBContext : public PluginData::CallbackContext {
@@ -561,22 +640,28 @@ class JoinSessionAsyncCB : public ajn::BusAttachment::JoinSessionAsyncCB {
         QStatus status;
         ajn::SessionId sessionId;
         ajn::SessionOpts sessionOpts;
-        JoinSessionCBContext(Env& env, QStatus status, ajn::SessionId sessionId, ajn::SessionOpts sessionOpts)
-            : env(env)
-            , status(status)
-            , sessionId(sessionId)
-            , sessionOpts(sessionOpts) { }
+        JoinSessionCBContext(Env& env, QStatus status, ajn::SessionId sessionId, ajn::SessionOpts sessionOpts) :
+            env(env),
+            status(status),
+            sessionId(sessionId),
+            sessionOpts(sessionOpts)
+        { }
     };
-    virtual void JoinSessionCB(QStatus status, ajn::SessionId sessionId, const ajn::SessionOpts& opts, void*) {
+
+    virtual void JoinSessionCB(QStatus status, ajn::SessionId sessionId, const ajn::SessionOpts& opts, void*)
+    {
         Plugin plugin = env->plugin;
         PluginData::Callback callback(env->plugin, _JoinSessionCB);
         callback->context = new JoinSessionCBContext(env, status, sessionId, opts);
         delete this;
         PluginData::DispatchCallback(callback);
     }
-    static void _JoinSessionCB(PluginData::CallbackContext* ctx) {
+
+    static void _JoinSessionCB(PluginData::CallbackContext* ctx)
+    {
         JoinSessionCBContext* context = static_cast<JoinSessionCBContext*>(ctx);
         if (ER_OK == context->status) {
+            context->env->busAttachment->SetSessionListener(context->sessionId, context->env->sessionListener);
             std::pair<ajn::SessionId, SessionListener*> element(context->sessionId, context->env->sessionListener);
             context->env->busAttachmentHost->sessionListeners.insert(element);
             context->env->sessionListener = 0; /* sessionListeners now owns sessionListener */
@@ -590,6 +675,7 @@ class JoinSessionAsyncCB : public ajn::BusAttachment::JoinSessionAsyncCB {
         context->env->callbackNative = 0;
     }
 };
+
 
 class BusObjectListener : public _BusObjectListener {
   public:
@@ -2224,8 +2310,9 @@ bool _BusAttachmentHost::bindSessionPort(const NPVariant* args, uint32_t argCoun
     SessionLostListenerNative* sessionLostListenerNative = 0;
     SessionMemberAddedListenerNative* sessionMemberAddedListenerNative = 0;
     SessionMemberRemovedListenerNative* sessionMemberRemovedListenerNative = 0;
+    SessionListener::Env sessionListenerEnv(plugin, *busAttachment);
+
     CallbackNative* callbackNative = 0;
-    SessionListener* sessionListener = 0;
     SessionPortListener* sessionPortListener = 0;
     QStatus status = ER_OK;
     NPVariant result;
@@ -2355,17 +2442,18 @@ bool _BusAttachmentHost::bindSessionPort(const NPVariant* args, uint32_t argCoun
     }
     QCC_DbgTrace(("sessionPort=%u", sessionPort));
 
+
     if (sessionLostListenerNative || sessionMemberAddedListenerNative || sessionMemberRemovedListenerNative) {
-        sessionListener = new SessionListener(plugin, *busAttachment, sessionLostListenerNative, sessionMemberAddedListenerNative, sessionMemberRemovedListenerNative);
+        sessionListenerEnv = SessionListener::Env(plugin, *busAttachment, sessionLostListenerNative, sessionMemberAddedListenerNative, sessionMemberRemovedListenerNative);
         /* sessionListener now owns session*ListenerNative */
         sessionLostListenerNative = 0;
         sessionMemberAddedListenerNative = 0;
         sessionMemberRemovedListenerNative = 0;
     }
-    sessionPortListener = new SessionPortListener(plugin, this, *busAttachment, acceptSessionListenerNative, sessionJoinedListenerNative, sessionListener);
+
+    sessionPortListener = new SessionPortListener(plugin, this, *busAttachment, acceptSessionListenerNative, sessionJoinedListenerNative, sessionListenerEnv);
     acceptSessionListenerNative = 0; /* sessionPortListener now owns acceptSessionListenerNative */
     sessionJoinedListenerNative = 0; /* sessionPortListener now owns sessionJoinedListenerNative */
-    sessionListener = 0; /* sessionPortListener now owns sessionListener */
 
     status = (*busAttachment)->BindSessionPort(sessionPort, sessionOpts, *sessionPortListener);
     if (ER_OK == status) {
@@ -2385,11 +2473,11 @@ exit:
     delete sessionLostListenerNative;
     delete sessionMemberAddedListenerNative;
     delete sessionMemberRemovedListenerNative;
-    delete sessionListener;
     delete sessionPortListener;
     VOID_TO_NPVARIANT(*npresult);
     return !typeError;
 }
+
 
 bool _BusAttachmentHost::unbindSessionPort(const NPVariant* args, uint32_t argCount, NPVariant* result)
 {
@@ -2546,6 +2634,7 @@ exit:
     VOID_TO_NPVARIANT(*result);
     return !typeError;
 }
+
 
 bool _BusAttachmentHost::joinSession(const NPVariant* args, uint32_t argCount, NPVariant* result)
 {
