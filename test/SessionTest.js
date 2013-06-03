@@ -148,9 +148,10 @@ AsyncTestCase("SessionTest", {
             };
             var id;
             var onJoinSession = function(err, sessionId, opts) {
+                console.log("inside onJoinSession");
                 assertFalsy(err);
                 id = sessionId;
-                bus.setLinkTimeout(id, 10, callbacks.add(leaveSession));
+                setTimeout(function() { bus.setLinkTimeout(id, 10, callbacks.add(leaveSession)); }, 30);
             };
             var leaveSession = function(err, timeout) {
                 assertFalsy(err);
